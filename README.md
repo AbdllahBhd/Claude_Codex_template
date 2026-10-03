@@ -20,8 +20,7 @@ your-project/
     │   ├── api-conventions.md     ← Endpoint design, error envelopes, validation
     │   ├── pr.md                  ← Branching, commits, PR workflow
     │   └── workflow.md            ← Plan-first, TDD, review discipline, done criteria
-    ├── commands/                  ← Custom slash commands (you type /review, /deploy)
-    │   ├── review.md              ← /review — structured code review
+    ├── commands/                  ← Custom slash commands (you type /deploy, /retro)
     │   ├── deploy.md              ← /deploy — guarded deployment checklist
     │   ├── install.md             ← /install — install tools from CATALOG.md
     │   └── retro.md               ← /retro — write session lessons into the rules
@@ -55,7 +54,8 @@ your-project/
    skills/agents — they cost almost nothing while dormant.
 5. **Install day-one tools from [CATALOG.md](CATALOG.md)** if needed
    (typical: superpowers once per laptop, context7 per project).
-6. **Verify:** open Claude Code, type `/review` — if it runs, everything is loaded.
+6. **Verify:** open Claude Code, type `/install` — if the catalog menu appears,
+   everything is loaded.
 
 ## 🔄 How to use: EXISTING project (already using Claude or Codex)
 
@@ -139,8 +139,8 @@ them from `CLAUDE.md` with `@.claude/rules/your-file.md`.
 ### `.claude/commands/*.md` — Slash commands *(run when YOU type them)*
 Each `.md` file becomes a `/command` named after the file. `$ARGUMENTS` in the file
 is replaced by whatever you type after the command:
-- `/review` → reviews current changes; `/review feature-branch` → reviews that branch.
 - `/deploy` → runs the checklist for staging; `/deploy production` → requires confirmation.
+- `/retro` → mines the whole session; `/retro testing` → focuses on one topic.
 The `allowed-tools` frontmatter limits what the command can do — keep it tight.
 
 ### `.claude/skills/<name>/SKILL.md` — Skills *(loaded by Claude when relevant)*
@@ -240,8 +240,66 @@ ships working code and improves every week":
    writes them into the right rule file. Twenty sessions later, your rules contain
    twenty sessions of distilled experience — that's what "senior" actually is.
 
-Suggested habit: `/retro` before you close a session; `/review` before you commit;
-let the done-gate handle the rest automatically.
+Suggested habit: `/retro` before you close a session; the built-in `/code-review`
+before you merge anything significant; let the done-gate handle the rest automatically.
+
+## ⚡ Command reference: built-in vs. created by this template
+
+Two kinds of slash commands exist, and it matters which is which: **built-ins** ship
+with the tool itself (exist in every project, documented by the vendor), while
+**template commands** exist only because a `.md` file sits in `.claude/commands/`
+of this project. Verified against the official docs on **2026-10-03**:
+[Claude Code commands reference](https://code.claude.com/docs/en/slash-commands) ·
+[Codex CLI commands reference](https://developers.openai.com/codex/cli/slash-commands.md).
+
+### ✍️ Created by this template (Claude Code only — type the command + Enter)
+
+| Command | What it does | Usage examples |
+|---|---|---|
+| `/deploy` | Pre-deploy gate (clean tree → lint → tests → build), then your deploy command | `/deploy` → staging · `/deploy production` → asks you to confirm first |
+| `/install` | Installs a tool from [CATALOG.md](CATALOG.md) and verifies it | `/install` → show the menu · `/install context7` · partial names OK |
+| `/retro` | Mines the session for corrections/lessons and writes them into the rule files | `/retro` at the end of a work session · `/retro testing` → focus on one topic |
+
+These are just files — `deploy.md`, `install.md`, `retro.md` in
+`.claude/commands/`. Edit the file to change the behavior; delete it to remove the
+command; copy the folder to another project and the commands exist there too.
+
+> **Code review is deliberately NOT a custom command:** Claude Code's built-in
+> reviewer (`/review`, also `/code-review` with effort levels low→ultra, `--fix`,
+> `--comment`) is stronger at finding real bugs — multi-agent verification, graded
+> confidence, PR integration. Use it for correctness. Conventions compliance is
+> covered separately: the rules files are always loaded, and the `code-reviewer`
+> subagent checks diffs against them (the workflow rule runs it on significant
+> changes automatically).
+
+### 🏭 Built into Claude Code (every project, no template needed)
+
+Most useful day to day: `/init` (generate CLAUDE.md from the codebase), `/clear`
+(fresh session), `/compact` (summarize to free context), `/cost` (token usage),
+`/memory` (edit CLAUDE.md files), `/model`, `/permissions`, `/agents` (manage
+subagents), `/mcp`, `/plugin` (marketplaces & plugins), `/sandbox`,
+`/pr_comments`, `/doctor`, `/help`. Full list: type `/` in a session, or see the
+[official reference](https://code.claude.com/docs/en/slash-commands).
+
+### 🏭 Built into Codex CLI (this template's commands do NOT appear there)
+
+Codex has its own ~50 built-ins; the closest equivalents to this template's
+workflow: `/review` (reviews your working tree), `/plan` (plan mode), `/compact`,
+`/diff`, `/status` + `/usage` (config & token usage), `/memories`, `/skills`,
+`/mcp`. Full list in the
+[official reference](https://developers.openai.com/codex/cli/slash-commands.md).
+
+Two Codex commands deserve special care in a project using this template:
+
+- **`/init` generates an AGENTS.md scaffold** — do NOT run it here; it would
+  clobber the pointer `AGENTS.md`. The pointer already gives Codex everything.
+- **`/import` imports a Claude Code setup** — useful on a fresh machine: it can
+  carry your Claude Code configuration over into Codex.
+
+For the template's custom workflows in Codex, ask in plain words instead — e.g.
+*"do a retro on this session and update the rule files"* or *"read CATALOG.md and
+install context7"*. The knowledge is in shared files, so this works; only the
+one-word shortcut is Claude-specific.
 
 ## 🛠 Extending the template
 
