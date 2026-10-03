@@ -1,0 +1,16 @@
+# Personal Claude Code files — never commit these
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Common junk
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
