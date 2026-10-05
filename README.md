@@ -16,17 +16,18 @@ your-project/
     ├── settings.json              ← Team settings: permissions + hooks (committed)
     ├── settings.local.json        ← YOUR personal settings (git-ignored)
     ├── rules/                     ← Convention files loaded into every session
-    │   ├── code-style.md          ← Naming, formatting, error handling
-    │   ├── api-conventions.md     ← Endpoint design, error envelopes, validation
+    │   ├── code-style.md          ← ONLY non-default style rules (linter owns the rest)
     │   ├── pr.md                  ← Branching, commits, PR workflow
-    │   └── workflow.md            ← Plan-first, TDD, review discipline, done criteria
+    │   └── workflow.md            ← Spec/plan-first, TDD, review discipline, done criteria
     ├── commands/                  ← Custom slash commands (you type /deploy, /retro)
     │   ├── deploy.md              ← /deploy — guarded deployment checklist
     │   ├── install.md             ← /install — install tools from CATALOG.md
     │   └── retro.md               ← /retro — write session lessons into the rules
     ├── skills/                    ← Skills Claude loads on demand when relevant
-    │   └── testing-patterns/
-    │       └── SKILL.md           ← How tests are written in this project
+    │   ├── testing-patterns/
+    │   │   └── SKILL.md           ← How tests are written in this project
+    │   └── api-conventions/
+    │       └── SKILL.md           ← API design rules (loads only when touching APIs)
     ├── agents/                    ← Specialized subagents Claude can delegate to
     │   ├── code-reviewer.md       ← Senior reviewer (read-only)
     │   └── security-auditor.md    ← Defensive security audits (read-only)
@@ -109,7 +110,13 @@ The first thing Claude reads. Put your project description, essential commands,
 architecture notes, and hard constraints here. The `@.claude/rules/...` lines at the
 bottom import the rule files, so they load automatically too.
 **Golden rule: keep it short.** Every line is loaded into every conversation — only
-include things Claude needs *every time*.
+include things Claude needs *every time*. Per Anthropic's official guidance, a
+bloated CLAUDE.md causes Claude to *ignore* your instructions — for each line ask
+*"would removing this cause mistakes?"*; if not, cut it.
+
+**Maintenance habits:** run `/context` to confirm what loaded; run `/doctor` and
+Claude proposes cuts for anything derivable from the codebase; `/retro` adds new
+lessons. Prune as often as you add.
 
 ### `CLAUDE.local.md` — Personal memory *(loads: every session, your machine only)*
 Same idea, but git-ignored. Local ports, your DB URL, personal preferences. Teammates
@@ -132,8 +139,11 @@ Your personal overrides: extra permissions, env vars, model choice. Wins over
 `settings.json` on your machine.
 
 ### `.claude/rules/*.md` — Conventions *(loaded via CLAUDE.md imports)*
-One file per topic. Claude follows these when writing code, designing APIs, and
-making commits/PRs. Add more files (e.g. `database.md`, `react.md`) and reference
+One file per topic. Claude follows these when writing code and making commits/PRs.
+Keep each file to rules a competent engineer would NOT do by default — per the
+2026 ETH Zurich study, restating what the model already knows adds cost (14–22%
+more reasoning tokens) without improving results. Topic knowledge that's only
+sometimes relevant (like API conventions here) belongs in `skills/` instead. Add more files (e.g. `database.md`, `react.md`) and reference
 them from `CLAUDE.md` with `@.claude/rules/your-file.md`.
 
 ### `.claude/commands/*.md` — Slash commands *(run when YOU type them)*

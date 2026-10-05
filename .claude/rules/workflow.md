@@ -3,6 +3,15 @@
 > Loaded via CLAUDE.md. Process discipline: how work gets planned, built, verified,
 > and reviewed. These rules apply to Claude, Codex, and any agent reading AGENTS.md.
 
+## Interview → spec (large features)
+
+- For a large or fuzzy feature, interview the user BEFORE planning: ask about
+  technical approach, UI/UX, edge cases, and tradeoffs — dig into the hard parts
+  they might not have considered, skip the obvious.
+- Write the result to `SPEC.md`: self-contained, naming the files and interfaces
+  involved, what is OUT of scope, and an end-to-end verification step.
+- Recommend executing the spec in a fresh session with clean context.
+
 ## Plan first (non-trivial work)
 
 - Any task that touches **more than 2 files**, adds a feature, or changes behavior

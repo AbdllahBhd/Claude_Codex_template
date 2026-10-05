@@ -39,9 +39,17 @@ npm run lint
 Detailed conventions live in `.claude/rules/` and are loaded automatically:
 
 - @.claude/rules/code-style.md
-- @.claude/rules/api-conventions.md
 - @.claude/rules/pr.md
 - @.claude/rules/workflow.md
+
+API conventions load on demand as a skill (`.claude/skills/api-conventions/`) —
+only sessions that touch an API pay for them.
+
+## Session & Context Hygiene
+
+- When compacting this conversation, always preserve the full list of modified
+  files, the current task plan status, and any test commands used.
+- Unrelated new task → suggest starting a fresh session instead of continuing here.
 
 ## Hard Constraints (always follow)
 

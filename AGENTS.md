@@ -9,9 +9,11 @@
 Also read the convention files it references:
 
 - [.claude/rules/code-style.md](.claude/rules/code-style.md)
-- [.claude/rules/api-conventions.md](.claude/rules/api-conventions.md)
 - [.claude/rules/pr.md](.claude/rules/pr.md)
 - [.claude/rules/workflow.md](.claude/rules/workflow.md)
+
+When working on an API, also read
+[.claude/skills/api-conventions/SKILL.md](.claude/skills/api-conventions/SKILL.md).
 
 > Maintainers: never put content here — edit CLAUDE.md and the rules files.
 > One source of truth; this pointer keeps every AI tool in sync.

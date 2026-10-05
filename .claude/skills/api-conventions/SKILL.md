@@ -1,6 +1,11 @@
+---
+name: api-conventions
+description: REST API design conventions for this project. Use when designing, implementing, or modifying any API endpoint, request/response shape, or error handling at the API boundary.
+---
+
 # API Conventions
 
-> Loaded via CLAUDE.md. Rules for designing and modifying any API in this project.
+> Loaded on demand when working on APIs (so non-API sessions don't pay for it).
 > Adapt to REST/GraphQL/RPC as your project requires.
 
 ## Endpoint Design (REST)

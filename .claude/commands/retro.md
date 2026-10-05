@@ -32,7 +32,7 @@ one into the right file. Scope hint (optional): $ARGUMENTS
    to check it isn't already covered. Skip duplicates; sharpen near-duplicates in place.
 3. Route each new lesson to the right home:
    - Coding conventions → `.claude/rules/code-style.md`
-   - API/design decisions → `.claude/rules/api-conventions.md`
+   - API/design decisions → `.claude/skills/api-conventions/SKILL.md`
    - Git/PR habits → `.claude/rules/pr.md`
    - Process/workflow lessons → `.claude/rules/workflow.md`
    - Project facts → the relevant section of `CLAUDE.md`
