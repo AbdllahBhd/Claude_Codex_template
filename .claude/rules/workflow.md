@@ -3,6 +3,17 @@
 > Loaded via CLAUDE.md. Process discipline: how work gets planned, built, verified,
 > and reviewed. These rules apply to Claude, Codex, and any agent reading AGENTS.md.
 
+## Single source of truth (multi-tool)
+
+- Durable knowledge lives ONLY in repo files: `CLAUDE.md`, `.claude/rules/`,
+  `.claude/skills/`, `SPEC.md`, `task_plan.md`. Never store project rules or
+  lessons in any tool's private memory (Claude user memory, Codex /memories) —
+  the other tool and other machines can't see it there.
+- When asked to "remember" something project-related, write it into the right
+  repo file (see the routing in `/retro`), not into private memory.
+- When choosing a memory/indexing tool, prefer one that stores its state as
+  files in the repo — that state is then shared across tools and laptops via git.
+
 ## Interview → spec (large features)
 
 - For a large or fuzzy feature, interview the user BEFORE planning: ask about

@@ -108,19 +108,24 @@ https://github.com/anthropics/claude-plugins-official
 
 ## 🧠 Memory — what survives the session
 
-### graphify — ⭐ ~123k — 💻 CLI + MCP ⚠️ check README for current install
-Codebase → queryable knowledge graph; hooks redirect Claude from raw file reads to graph queries. **Try on one project before making it a default — it changes how every session reads code.**
+> **Cross-tool note:** prefer tools that store state as repo files — that memory is
+> then shared between Claude, Codex, and all your laptops (via git). Tool-private
+> memory is locked to one tool. Per entry: 🔁 = shared via repo files ·
+> 🔒 = locked to one tool · 🖥 = shared across tools on one machine only.
+
+### graphify — ⭐ ~123k — 💻 CLI + MCP 🔁 ⚠️ check README for current install
+Codebase → queryable knowledge graph stored in the repo (`graphify-out/`) — the graph is shared across tools and laptops; register the MCP in each tool. Hooks redirect Claude from raw file reads to graph queries. **Try on one project before making it a default — it changes how every session reads code.**
 https://github.com/Graphify-Labs/graphify
 
-### claude-mem — ⭐ ~95k — 💻 CLI
-Persistent compressed memory of everything the agent did, recalled in later sessions.
+### claude-mem — ⭐ ~95k — 💻 CLI 🔒 Claude-only
+Persistent compressed memory of everything the agent did, recalled in later sessions. Hooks into Claude Code specifically — Codex never sees this memory; skip it if Codex is part of your workflow.
 ```bash
 npm install -g claude-mem && claude-mem install
 ```
 https://github.com/thedotmack/claude-mem
 
-### codegraph — ⭐ ~73k — 🔧 MCP ⚠️ (name is ambiguous; verify repo)
-Local SQLite code knowledge graph, auto-syncing, queried via MCP. 100% local.
+### codegraph — ⭐ ~73k — 🔧 MCP 🖥 ⚠️ (name is ambiguous; verify repo)
+Local SQLite code knowledge graph, auto-syncing, queried via MCP. 100% local — any MCP-speaking tool on this machine can query it, but the index doesn't travel via git.
 https://github.com/colbymchenry/codegraph
 
 ### repomix — ⭐ ~29k — 💻 CLI (one-off)
@@ -130,8 +135,8 @@ npx repomix@latest
 ```
 https://github.com/yamadashy/repomix
 
-### planning-with-files — ⭐ ~27k — 📁 Skill copy
-Manus-style persistent planning: task_plan.md / findings.md / progress.md survive restarts.
+### planning-with-files — ⭐ ~27k — 📁 Skill copy 🔁
+Manus-style persistent planning: task_plan.md / findings.md / progress.md survive restarts — plain repo files, fully shared across tools and laptops.
 ```bash
 git clone https://github.com/OthmanAdi/planning-with-files && cp -r planning-with-files/planning-with-files .claude/skills/
 ```
