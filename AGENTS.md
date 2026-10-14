@@ -13,7 +13,7 @@ Also read the convention files it references:
 - [.claude/rules/workflow.md](.claude/rules/workflow.md)
 
 On-demand knowledge and workflows are available to you natively as skills in
-`.agents/skills/` (api-conventions, testing-patterns, deploy, install, retro —
+`.agents/skills/` (api-conventions, testing-patterns, llm-council, deploy, install, retro —
 invoke with `$name`). These are generated copies of `.claude/skills/` and
 `.claude/commands/` — when updating a skill, edit the source under `.claude/`
 and run `bash scripts/sync-codex.sh`; never edit `.agents/skills/` directly.
