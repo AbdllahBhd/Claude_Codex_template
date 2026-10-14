@@ -108,8 +108,8 @@ destructive move — template placeholders would erase learned knowledge. Merge:
 6. **Check your tests pass BEFORE the done-gate arms.** If the suite is
    currently red, the gate will block every task until it's green — fix the
    suite first, or temporarily set `SKIP_DONE_GATE=1`.
-7. Run `bash scripts/sync-codex.sh`, do the per-computer Codex steps from
-   section 11, then verify (`/install` in Claude, `$retro` in Codex).
+7. Do the per-computer Codex steps from section 11 (the Codex mirror in
+   `.agents/skills/` is already committed, no sync needed), then verify (`/install` in Claude, `$retro` in Codex).
 8. **First week: run `/retro` after each session.** Everything you've been
    re-typing in prompts for months finally lands in rule files, permanently.
 
@@ -153,7 +153,7 @@ your-project/
 ├── .agents/skills/      ← Codex's copy of skills (auto-generated — don't edit)
 ├── .codex/config.toml   ← wires the safety hooks into Codex
 ├── scripts/
-│   └── sync-codex.sh    ← regenerates the Codex copies after you change things
+│   └── sync-codex.sh    ← regenerates the Codex copies (auto-run by a hook on skill edits)
 └── .claude/
     ├── settings.json        ← permissions (what the AI may/may not do) + hook wiring
     ├── settings.local.json  ← your personal overrides (not in git)
@@ -375,13 +375,30 @@ projections.
 | Hooks (done-gate, secrets) | `settings.json` → `.claude/hooks/` | `.codex/config.toml` → same scripts | Nothing — same scripts |
 | MCP servers | `.mcp.json` | Codex's own config | One-time registration per machine |
 
-**The one habit:** after adding or changing any skill or command, run
+**The sync command:**
 
 ```bash
 bash scripts/sync-codex.sh
 ```
 
-and commit the result. Generated files carry a "do not edit this copy" banner.
+It copies every `.claude/skills/*` folder into `.agents/skills/` and converts every
+`.claude/commands/*.md` into a Codex skill (`$deploy`, `$retro`, ...). It is
+idempotent and only ever writes inside `.agents/skills/`, so it is always safe
+to run. Run it from the repo root.
+
+**When to run it:**
+
+| Situation | Run it? |
+|---|---|
+| Fresh copy of the template into a new project | No — `.agents/skills/` is committed and already up to date |
+| Claude edited a skill or command in a session | No — the `sync-codex-on-edit.sh` hook already ran it |
+| You edited a skill or command by hand in your editor | **Yes** |
+| You copied a skill folder in from another project | **Yes** |
+| You deleted a skill or command | **Yes** (the hook only fires on edits) |
+| You only use Claude Code, never Codex | Never — you can delete `.agents/` |
+
+Then commit `.agents/skills/` together with the `.claude/` change. Generated
+files carry a "do not edit this copy" banner.
 
 **One-time steps per computer, in Codex:**
 1. Register your MCP servers (`codex mcp add ...`, matching what's in `.mcp.json`).
@@ -443,7 +460,8 @@ versus locked to one tool (🔒).
   and `tools` at the top.
 - **New hook:** script into `.claude/hooks/`, wire it in `settings.json` (and in
   `.codex/config.toml` for Codex).
-- **After any skill/command change:** `bash scripts/sync-codex.sh` + commit.
+- **After any skill/command change:** commit `.agents/skills/` too (the hook
+  regenerates it; run `bash scripts/sync-codex.sh` only for manual edits).
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
