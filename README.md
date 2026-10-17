@@ -172,8 +172,10 @@ your-project/
     │   │   └── SKILL.md     ←   how tests are written in this project
     │   ├── api-conventions/
     │   │   └── SKILL.md     ←   API design rules (loads only for API work)
-    │   └── project-structure/
-    │       └── SKILL.md     ←   best-practice folder layouts per stack (loads when scaffolding)
+    │   ├── project-structure/
+    │   │   └── SKILL.md     ←   best-practice folder layouts per stack (loads when scaffolding)
+    │   └── superpowers/     ←   the superpowers PLUGIN, vendored: 15 skills (TDD,
+    │                            debugging, planning...) load from the repo itself
     ├── agents/              ← specialist reviewers the AI can hand work to
     │   ├── code-reviewer.md     ←   senior code reviewer (read-only, fresh context)
     │   └── security-auditor.md  ←   defensive security audits (read-only)
@@ -466,6 +468,13 @@ versus locked to one tool (🔒).
   `.codex/config.toml` for Codex).
 - **After any skill/command change:** commit `.agents/skills/` too (the hook
   regenerates it; run `bash scripts/sync-codex.sh` only for manual edits).
+- **The vendored superpowers plugin** (`.claude/skills/superpowers/`) loads from
+  the repo on every machine once the folder is trusted — no install needed. If
+  you ALSO install superpowers from its marketplace (`/plugin`), the marketplace
+  copy wins and auto-updates; the vendored one is the fallback for fresh
+  machines. To update the vendored copy, re-clone the repo and copy it over the
+  folder (excluding `.git`). Its skills are Claude-only — the Codex sync
+  intentionally skips plugin folders.
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
