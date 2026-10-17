@@ -473,8 +473,9 @@ versus locked to one tool (🔒).
   you ALSO install superpowers from its marketplace (`/plugin`), the marketplace
   copy wins and auto-updates; the vendored one is the fallback for fresh
   machines. To update the vendored copy, re-clone the repo and copy it over the
-  folder (excluding `.git`). Its skills are Claude-only — the Codex sync
-  intentionally skips plugin folders.
+  folder (excluding `.git`), then re-run the sync. The sync projects the
+  plugin's inner skills into `.agents/skills/` so Codex gets them too
+  (invoke with `$test-driven-development`, `$systematic-debugging`, ...).
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
