@@ -56,7 +56,8 @@ instead of the quick start.
 
 1. **Copy everything** in this folder into your project's root folder.
    (If you cloned this template from git: delete the `.git` folder inside the
-   copy, so your project starts its own history.)
+   copy, so your project starts its own history. You can always re-link later
+   to receive template updates — see "Pull template updates" in section 13.)
 2. **Fill in the AI's project brief.** Open Claude Code in the project and say:
    > *Read the codebase and fill in CLAUDE.md with the real stack, commands, and architecture.*
    Skim what it wrote and fix anything wrong.
@@ -479,6 +480,18 @@ versus locked to one tool (🔒).
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
+- **Pull template updates into an existing project** (works even though you
+  deleted the template's `.git` when copying — the project's own repo just
+  re-links). One-time setup per project:
+  ```bash
+  git remote add template <your-template-repo-url>
+  git fetch template
+  git merge template/main --allow-unrelated-histories -X ours
+  ```
+  `-X ours` keeps YOUR version of every shared file (your CLAUDE.md, adapted
+  hooks...) and brings in only new template files — review, run the sync,
+  commit. Every later update is just `git fetch template && git merge
+  template/main`: a normal merge where only real line-level overlaps conflict.
 
 **Committed (shared via git) vs. personal (git-ignored):**
 
