@@ -160,7 +160,9 @@ your-project/
     ├── rules/               ← always-loaded conventions, one topic per file
     │   ├── code-style.md    ←   only NON-obvious style rules (the linter owns the rest)
     │   ├── pr.md            ←   branches, commit messages, PR habits
-    │   └── workflow.md      ←   plan-first, test-first, when "done" counts
+    │   ├── workflow.md      ←   plan-first (council-reviewed plans), test-first, done criteria
+    │   ├── delivery.md      ←   feature done → review → merge to develop → next task
+    │   └── reporting.md     ←   human-readable briefings, progress updates, context cleanup
     ├── commands/            ← shortcuts you type (one file = one command)
     │   ├── deploy.md        ←   /deploy — guarded deployment checklist
     │   ├── install.md       ←   /install — install tools from CATALOG.md
@@ -168,8 +170,10 @@ your-project/
     ├── skills/              ← deep knowledge loaded only when relevant
     │   ├── testing-patterns/
     │   │   └── SKILL.md     ←   how tests are written in this project
-    │   └── api-conventions/
-    │       └── SKILL.md     ←   API design rules (loads only for API work)
+    │   ├── api-conventions/
+    │   │   └── SKILL.md     ←   API design rules (loads only for API work)
+    │   └── project-structure/
+    │       └── SKILL.md     ←   best-practice folder layouts per stack (loads when scaffolding)
     ├── agents/              ← specialist reviewers the AI can hand work to
     │   ├── code-reviewer.md     ←   senior code reviewer (read-only, fresh context)
     │   └── security-auditor.md  ←   defensive security audits (read-only)
