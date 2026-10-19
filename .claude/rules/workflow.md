@@ -69,6 +69,22 @@
   The user sets it; the AI never invokes /goal itself (the worker must not
   appoint its own judge).
 
+## Precedence with plugins (superpowers and others)
+
+Plugin skills supply TECHNIQUE; these rules define the REQUIRED ARTIFACTS and
+OUTCOMES. On any conflict, this file and the other `.claude/rules/` win:
+
+- A plan produced with superpowers `writing-plans` (or any other method) must
+  still land in `task_plan.md` in the Plan-quality structure above, with
+  per-task `Done when:` clauses and the closing `/goal` line. Superpowers
+  shapes the thinking; our format is the deliverable.
+- `brainstorming` serves the Interview → spec step for large/fuzzy features.
+  The trivial-fix exemption in "Plan first" OVERRIDES its "use before any
+  creative work" trigger — no brainstorming ceremony for typo-sized changes.
+- Branch integration follows `delivery.md` (gates → review → merge to
+  `develop` → propose next task), not `finishing-a-development-branch`'s own
+  menu of options.
+
 ## Test-driven by default
 
 - For new behavior: write the failing test FIRST, see it fail, implement, see it pass.

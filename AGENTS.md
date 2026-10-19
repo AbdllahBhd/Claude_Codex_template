@@ -15,10 +15,13 @@ Also read the convention files it references:
 - [.claude/rules/reporting.md](.claude/rules/reporting.md)
 
 On-demand knowledge and workflows are available to you natively as skills in
-`.agents/skills/` (api-conventions, testing-patterns, llm-council, deploy, install, retro —
-invoke with `$name`). These are generated copies of `.claude/skills/` and
+`.agents/skills/` — list that folder to see what exists (project skills,
+workflow commands like `$deploy`/`$install`/`$retro`, and the superpowers
+discipline skills such as `$test-driven-development` and
+`$systematic-debugging`). These are generated copies of `.claude/skills/` and
 `.claude/commands/` — when updating a skill, edit the source under `.claude/`
-and run `bash scripts/sync-codex.sh`; never edit `.agents/skills/` directly.
+and run `bash scripts/sync-codex.sh` (Windows: `scripts\sync-codex.cmd`);
+never edit `.agents/skills/` directly.
 
 **Where to save lessons and new rules:** when the user corrects you or states a
 rule, write it into the matching file — coding conventions →
