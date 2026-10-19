@@ -46,8 +46,28 @@
   projects, have the draft plan reviewed in a fresh context before showing it —
   the `llm-council` skill when available, otherwise a subagent prompted as a
   critical plan reviewer (gaps, wrong assumptions, missing verification — not
-  style). Address the findings, then present the plan noting it was reviewed
-  and what changed. Present it only when it would pass a senior engineer's bar.
+  style). The review also checks every task's "Done when" for the two failure
+  modes: too weak (satisfiable without the real work) and wrong/too strict
+  (tests the wrong thing, fences out files the task must touch). Address the
+  findings, then present the plan noting it was reviewed and what changed.
+  Present it only when it would pass a senior engineer's bar.
+
+## Per-task goals (acceptance criteria in the plan)
+
+- Every task in `task_plan.md` carries its own `Done when:` with three clauses,
+  all checkable from files or command output:
+  1. **Proof of the new behavior** — named test/command + expected result.
+  2. **Nothing broken** — the project's standing gates (analyzer, suite).
+  3. **Scope fence** — "no files changed outside <paths>".
+- A task may be marked `[x]` ONLY when its Done-when evidence was produced and
+  shown. A checked box means "evidence existed", never "felt finished".
+- If execution reveals a Done-when is wrong (e.g. the fence excludes a file the
+  task genuinely needs), propose an amendment to the plan file and say why —
+  never silently reinterpret the goal. Plan edits are visible in git.
+- **Every presented plan ends with a ready-to-paste `/goal` line**, e.g.:
+  `/goal every task in task_plan.md is checked off per its own "Done when", and the project's quality gates pass`
+  The user sets it; the AI never invokes /goal itself (the worker must not
+  appoint its own judge).
 
 ## Test-driven by default
 
