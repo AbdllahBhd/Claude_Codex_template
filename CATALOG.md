@@ -122,23 +122,23 @@ language only where no project design system exists; elsewhere it serves as
 critique/audit. Update: re-copy `.claude/skills/impeccable/` from a fresh clone.
 https://github.com/pbakaus/impeccable
 
-### ux-ui-agent-skills (XIAS) — ⭐ ~2.4k — 📁 Enforcer (web) — per-project ONLY
-52 objective gates, 34 in a real browser: WCAG contrast, keyboard, target
-sizes, reduced motion, overflow. Design quality that fails the build. MIT.
-CANNOT be vendored: its 25 skills reference repo-root assets
-(`../../../components`, `scripts/`) that only its installer places correctly —
-hand-copies break. Install in web projects that want the gates:
+### ux-ui-agent-skills (XIAS) — ⭐ ~2.4k — ✅ SHIPPED inert in `.claude/skills-optional/xias/` (Enforcer, web)
+52 objective gates, 34 in a real browser. MIT, bundled complete (25 skills +
+the root assets they require). Inert until activated per project:
 ```bash
-npx skills add plugin87/ux-ui-agent-skills
+bash scripts/activate-design.sh xias
 ```
+(Activation copies its skills into `.claude/skills/` and its asset folders —
+components/, tokens/, scripts/... — to the project root. Web projects only.)
 https://github.com/plugin87/ux-ui-agent-skills
 
-### apple-design-skill — ⭐ ~1.6k — 📁 Reviewer (mobile & cross-platform) ⚠️ no license
+### apple-design-skill — ⭐ ~1.6k — 📁 Reviewer (mobile & cross-platform) — clone-on-activate
 Audits screens against 123 real Apple HIG pages, translating to Flutter, React
 Native, SwiftUI, Electron... Reviewer role = safe alongside any design system.
-No license file → install per project, never vendor/redistribute.
+⚠️ No license upstream, so it is NEVER committed: the activation script clones
+it fresh and `.gitignore` keeps it out of the repo. Re-run after fresh clones.
 ```bash
-npx skills add dickwu/apple-design-skill
+bash scripts/activate-design.sh apple-design
 ```
 https://github.com/dickwu/apple-design-skill
 

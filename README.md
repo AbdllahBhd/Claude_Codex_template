@@ -181,6 +181,12 @@ your-project/
     │   │   └── SKILL.md     ←   animation rules (durations, easing, Flutter & web)
     │   ├── impeccable/      ←   vendored design-language skill (web + native UI,
     │   │                        auto-triggers; project design systems outrank it)
+    ├── skills-optional/     ← design skills SHIPPED but inert — activate per project
+    │   ├── xias/            ←   52 design gates + assets (web enforcer)
+    │   ├── ui-ux-pro-max/   ←   alternative generator (7 skills)
+    │   ├── taste/           ←   alternative generator (art direction)
+    │   │                        → bash scripts/activate-design.sh <name>
+    │   │                        (apple-design: same script, clone-on-activate)
     │   └── superpowers/     ←   the superpowers PLUGIN, vendored: 15 skills (TDD,
     │                            debugging, planning...) load from the repo itself
     ├── agents/              ← specialist reviewers the AI can hand work to
