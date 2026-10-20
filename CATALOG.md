@@ -73,8 +73,8 @@ Anthropic's official skill library (docx, pptx, xlsx, pdf...).
 ```
 Or clone and copy individual folders into `.claude/skills/`. https://github.com/anthropics/skills
 
-### ui-ux-pro-max — ⭐ ~132k — 📁 Skill copy
-Design intelligence: 67 UI styles, 96 palettes, 57 font pairings, UX rules. For projects with a UI.
+### ui-ux-pro-max — ⭐ ~138k — 📁 Skill copy (Generator role — see Design & Motion section)
+Design intelligence: 67 UI styles, 96 palettes, 57 font pairings, UX rules. For projects with a UI. At most one generator per project.
 ```bash
 git clone https://github.com/nextlevelbuilder/ui-ux-pro-max-skill && cp -r ui-ux-pro-max-skill/ui-ux-pro-max .claude/skills/
 ```
@@ -105,6 +105,43 @@ Anthropic's curated plugin directory — already registered in Claude Code; brow
 https://github.com/anthropics/claude-plugins-official
 
 ---
+
+## 🎨 Design & Motion — raise the UI floor (verified 2026-10-20)
+
+> The template already ships two baseline skills (`ui-quality`, `motion`) that
+> apply everywhere. The entries below are STRONGER per-project doctrines, in
+> three roles: **Generator** (how UI gets designed — install at most ONE per
+> project), **Reviewer** and **Enforcer** (judge the output — stack freely).
+> A project's own design system always outranks any generator.
+
+### impeccable — ⭐ ~83k — 📁 Generator (web-leaning)
+Strict design language (spacing, type, hierarchy, motion) the AI obeys
+automatically → consistent premium output without prompting. MIT.
+```bash
+npx skills add pbakaus/impeccable
+```
+https://github.com/pbakaus/impeccable
+
+### ux-ui-agent-skills (XIAS) — ⭐ ~2.4k — 📁 Enforcer (web)
+52 objective gates, 34 in a real browser: WCAG contrast, keyboard, target
+sizes, reduced motion, overflow. Design quality that fails the build. MIT.
+```bash
+npx skills add plugin87/ux-ui-agent-skills
+```
+https://github.com/plugin87/ux-ui-agent-skills
+
+### apple-design-skill — ⭐ ~1.6k — 📁 Reviewer (mobile & cross-platform) ⚠️ no license
+Audits screens against 123 real Apple HIG pages, translating to Flutter, React
+Native, SwiftUI, Electron... Reviewer role = safe alongside any design system.
+No license file → install per project, never vendor/redistribute.
+```bash
+npx skills add dickwu/apple-design-skill
+```
+https://github.com/dickwu/apple-design-skill
+
+### Animation skills — none recommended
+Largest found is ~15⭐ and web-only (verified 2026-10-20). Use the template's
+own `motion` skill; revisit if the ecosystem matures.
 
 ## 🧠 Memory — what survives the session
 
