@@ -295,6 +295,35 @@ write it precisely ("Use when writing or reviewing tests"), or the skill may
 fire at the wrong time. A skill folder can also hold extra reference files and
 scripts next to SKILL.md.
 
+### The skills shipped in this template — what each one is for
+
+You never invoke most of these — they fire on their own when the work matches.
+This table is the reminder of what's watching over each kind of work:
+
+**Always active (every project, both AIs):**
+
+| Skill | Fires when you... | What it does for you |
+|---|---|---|
+| `ui-quality` | touch any screen/component | Premium baseline: hierarchy, spacing, states, a11y — self-audited before you see it |
+| `motion` | touch any animation/transition | The timing/easing numbers, reduced-motion, Flutter & web patterns |
+| `impeccable` | do any frontend design work | The full design language: polish, critique, audit, animate modes (project design systems outrank it) |
+| `testing-patterns` | write or review tests | Your test conventions: builders, mocking rules, anti-patterns |
+| `api-conventions` | design/modify an API | Endpoints, error envelope, validation, versioning rules |
+| `project-structure` | scaffold a project/module | The recognized folder layout per stack; when clean architecture is worth it |
+| `llm-council` | say "council this" / big decisions | 5 AI advisors analyze independently, peer-review, give a verdict — plans use it automatically |
+| **superpowers** (15 skills) | ...the big ones: | `systematic-debugging` (any bug: root-cause process, no guess-loops) · `test-driven-development` (red→green discipline) · `brainstorming` (before new features) · `writing-plans`/`executing-plans` (plan workflow) · `verification-before-completion` (evidence before "done") · `dispatching-parallel-agents` (parallel work) |
+
+**Shipped inert — activate per project type** (`bash scripts/activate-design.sh <name>`, see section 3 step 5):
+
+| Skill | Activate in... | What it adds |
+|---|---|---|
+| `xias` | web projects | 52 objective design gates (WCAG, keyboard, overflow...) that fail instead of flattering |
+| `apple-design` | mobile projects | Reviews screens against Apple's real HIG, speaks Flutter (clone-on-activate) |
+| `ui-ux-pro-max` / `taste` | only if replacing impeccable | Alternative design generators — one generator per project, the script enforces it |
+
+(The typed commands — `/retro`, `/install`, `/deploy` — are in section 10; the
+optional *tools* catalog is section 12.)
+
 ### `.claude/agents/*.md` — specialist reviewers *(used when delegating)*
 Separate workers with their own instructions, their own allowed tools, and —
 key point — **their own working memory**, separate from your conversation. The
