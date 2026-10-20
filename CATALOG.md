@@ -114,17 +114,20 @@ https://github.com/anthropics/claude-plugins-official
 > project), **Reviewer** and **Enforcer** (judge the output — stack freely).
 > A project's own design system always outranks any generator.
 
-### impeccable — ⭐ ~83k — 📁 Generator (web-leaning)
-Strict design language (spacing, type, hierarchy, motion) the AI obeys
-automatically → consistent premium output without prompting. MIT.
-```bash
-npx skills add pbakaus/impeccable
-```
+### impeccable — ⭐ ~83k — ✅ VENDORED in this template (Generator, web + native)
+Strict design language (spacing, type, hierarchy, motion, UX copy, a11y) the AI
+obeys automatically — already in `.claude/skills/impeccable/` (Apache-2.0,
+v4.7.0), nothing to install. Scoped by workflow.md: proposes the visual
+language only where no project design system exists; elsewhere it serves as
+critique/audit. Update: re-copy `.claude/skills/impeccable/` from a fresh clone.
 https://github.com/pbakaus/impeccable
 
-### ux-ui-agent-skills (XIAS) — ⭐ ~2.4k — 📁 Enforcer (web)
+### ux-ui-agent-skills (XIAS) — ⭐ ~2.4k — 📁 Enforcer (web) — per-project ONLY
 52 objective gates, 34 in a real browser: WCAG contrast, keyboard, target
 sizes, reduced motion, overflow. Design quality that fails the build. MIT.
+CANNOT be vendored: its 25 skills reference repo-root assets
+(`../../../components`, `scripts/`) that only its installer places correctly —
+hand-copies break. Install in web projects that want the gates:
 ```bash
 npx skills add plugin87/ux-ui-agent-skills
 ```

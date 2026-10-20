@@ -179,6 +179,8 @@ your-project/
     │   │   └── SKILL.md     ←   premium UI baseline, auto-applied to any screen work
     │   ├── motion/
     │   │   └── SKILL.md     ←   animation rules (durations, easing, Flutter & web)
+    │   ├── impeccable/      ←   vendored design-language skill (web + native UI,
+    │   │                        auto-triggers; project design systems outrank it)
     │   └── superpowers/     ←   the superpowers PLUGIN, vendored: 15 skills (TDD,
     │                            debugging, planning...) load from the repo itself
     ├── agents/              ← specialist reviewers the AI can hand work to
