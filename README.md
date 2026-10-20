@@ -77,10 +77,23 @@ instead of the quick start.
    real deploy commands into `.claude/commands/deploy.md`. Leave skills and
    agents you don't need — they cost almost nothing while unused (explained in
    section 8).
-5. **Optionally install day-one tools** from [CATALOG.md](CATALOG.md) — typical
+5. **Activate the design setup for this project's type** (one command, once —
+   the skills ship inert in `.claude/skills-optional/`; see CATALOG's Design
+   section for what each does):
+
+   | Project type | Run |
+   |---|---|
+   | Web app / site | `bash scripts/activate-design.sh xias` (quality gates — the Impeccable generator is already active by default) |
+   | Mobile app (Flutter/native) | `bash scripts/activate-design.sh apple-design` (HIG reviewer, clone-on-activate) |
+   | Backend / CLI / library | Nothing — skip this step |
+   | Prefer a different look generator | `activate-design.sh off impeccable` then `activate-design.sh ui-ux-pro-max` (or `taste`) — one generator per project |
+
+   (Windows PowerShell: run through Git Bash —
+   `& "C:\Program Files\Git\bin\bash.exe" scripts/activate-design.sh xias`)
+6. **Optionally install day-one tools** from [CATALOG.md](CATALOG.md) — typical
    picks: `superpowers` (once per computer) and `context7` (per project). See
    section 12.
-6. **Verify it loaded:** type `/install` in Claude Code — if a menu of tools
+7. **Verify it loaded:** type `/install` in Claude Code — if a menu of tools
    appears, everything works. Using Codex too? Do the one-time steps in
    section 11.
 
@@ -109,8 +122,10 @@ destructive move — template placeholders would erase learned knowledge. Merge:
 6. **Check your tests pass BEFORE the done-gate arms.** If the suite is
    currently red, the gate will block every task until it's green — fix the
    suite first, or temporarily set `SKIP_DONE_GATE=1`.
-7. Do the per-computer Codex steps from section 11 (the Codex mirror in
-   `.agents/skills/` is already committed, no sync needed), then verify (`/install` in Claude, `$retro` in Codex).
+7. Activate the design setup for the project's type (section 3, step 5), do the
+   per-computer Codex steps from section 11 (the Codex mirror in
+   `.agents/skills/` is already committed, no sync needed), then verify
+   (`/install` in Claude, `$retro` in Codex).
 8. **First week: run `/retro` after each session.** Everything you've been
    re-typing in prompts for months finally lands in rule files, permanently.
 
