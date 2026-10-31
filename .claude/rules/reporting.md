@@ -22,6 +22,24 @@ short sentences, no jargon walls:
 Skip a section only when it is truly empty. For tiny tasks, compress to
 Summary + Verified — never skip the evidence.
 
+## Decision requests (suggestions, next tasks, proposed fixes)
+
+NEVER present a bare suggestion ("we should also fix X", "next I suggest Y").
+Anything that waits on the user's decision carries these five parts, compact,
+so they can decide IMMEDIATELY without asking follow-up questions:
+
+1. **What** — one plain sentence.
+2. **Why** — what it improves or prevents; what happens if skipped.
+3. **The decision** — the exact question, with options and a recommendation
+   ("A: fix now (recommended) · B: defer to backlog · C: skip").
+4. **Relation** — exactly one tag:
+   `[BLOCKS current task]` · `[NEEDED for the plan — task N]` ·
+   `[SIDE FIX — safe to defer]` · `[FUTURE idea]`
+5. **Cost** — rough effort (minutes / hours).
+
+Multiple suggestions = one short table with these columns. A suggestion the
+user must interrogate before deciding is a failed suggestion.
+
 ## Goal footer (while executing a plan)
 
 - During plan execution, end EVERY response with exactly one line:

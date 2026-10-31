@@ -7,7 +7,9 @@
 
 Run this loop IN ORDER — never skip a step, never reorder:
 
-1. **Gate:** all quality gates green (see "Definition of done" in workflow.md).
+1. **Gate:** ALL quality gates green — this is the moment the FULL test suite
+   runs (per-step stops only enforce the lint/typecheck floor; see
+   "Verification economy" in workflow.md). Never merge on a partial gate.
 2. **Review:** run an adversarial review of the diff (`code-reviewer` agent, or
    superpowers `requesting-code-review` when installed). Fix every finding that
    affects correctness or requirements; list the ones deliberately skipped and why.

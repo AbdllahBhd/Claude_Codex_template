@@ -41,7 +41,13 @@ run_gate() { # $1 = script name, $2 = label
 
 run_gate lint "Lint"
 run_gate typecheck "Typecheck"
-run_gate test "Tests"
+# Full suite runs at the delivery merge, not every stop (Verification
+# economy, workflow.md). DONE_GATE_FULL=1 forces it on this stop.
+if [ "${DONE_GATE_FULL:-0}" = "1" ]; then
+  run_gate test "Tests"
+else
+  echo "done-gate: lint+typecheck enforced; full suite deferred to the delivery gate (DONE_GATE_FULL=1 to force)."
+fi
 
 if [ -n "$FAILURES" ]; then
   printf 'DONE-GATE BLOCKED: the task is not done because quality gates failed.\nFix these before finishing:%b\n' "$FAILURES" >&2
