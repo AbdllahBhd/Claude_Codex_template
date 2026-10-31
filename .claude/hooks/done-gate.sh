@@ -25,6 +25,15 @@ fi
 # --- Detect project type (npm-based by default; adapt per stack) ------------
 [ -f package.json ] || exit 0
 
+# UNC working directory (e.g. \\wsl.localhost\... opened from Windows): npm
+# spawns CMD.EXE, which cannot use UNC paths, so every gate would fail falsely.
+# Skip with a visible note — gates must run inside the native environment.
+case "$PWD" in
+  //*)
+    echo "done-gate: UNC working directory — npm gates SKIPPED here, NOT passed. Run them inside the native environment (e.g. from WSL) before merging."
+    exit 0 ;;
+esac
+
 has_script() {
   grep -q "\"$1\"[[:space:]]*:" package.json
 }
