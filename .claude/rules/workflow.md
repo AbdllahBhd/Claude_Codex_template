@@ -19,6 +19,9 @@
 - For a large or fuzzy feature, interview the user BEFORE planning: ask about
   technical approach, UI/UX, edge cases, and tradeoffs — dig into the hard parts
   they might not have considered, skip the obvious.
+- End the interview with the pro-gap check: state what a senior specialist in
+  this domain would add that the user did NOT ask for — delivered as decision
+  requests (reporting.md's five-part format), never as silently added scope.
 - Write the result to `SPEC.md`: self-contained, naming the files and interfaces
   involved, what is OUT of scope, and an end-to-end verification step.
 - Recommend executing the spec in a fresh session with clean context.
@@ -130,6 +133,18 @@ diffs touch code it covers. The FULL gate is mandatory at exactly three
 moments: merge to `develop` (delivery.md step 1), release, and when the user
 asks. The Stop hook enforces the floor (lint + typecheck) and defers the full
 suite to the delivery gate by design (`DONE_GATE_FULL=1` forces it per stop).
+
+## Primary sources for external facts
+
+- When correctness depends on a fact outside this repo — a library's API, a
+  framework behavior, a spec/standard, a service's limits — consult the PRIMARY
+  source: official docs for the installed version, the changelog, or the
+  dependency's actual code in node_modules/vendor. Not blog posts, not tutorial
+  summaries, not memory of an older version.
+- Name the source used in the briefing ("per expo-camera 17.x docs: ...").
+  An external fact stated without a source is a guess wearing a suit.
+- Memory of an API is a hypothesis, not a fact — cheap to verify, expensive
+  to be wrong about.
 
 ## Context discipline
 
