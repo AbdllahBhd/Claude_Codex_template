@@ -1,0 +1,11 @@
+# Copy to .claude/gate-core-paths and edit. One extended regex per line.
+# A branch touching any of these runs the FULL suite at merge; other code runs
+# only the tests covering the touched files; styles/markup/assets/docs run none.
+# Without the real file, every code change runs the full suite (safe default).
+#
+# Typical shared core, by stack:
+# Flutter:    ^lib/(models|services|data|core)/   ^pubspec\.(yaml|lock)$
+# Supabase:   ^supabase/(migrations|functions)/
+# Node/TS:    ^src/(lib|services|domain)/          ^package(-lock)?\.json$
+# WordPress:  ^wp-content/plugins/<core>/src/      ^wp-content/themes/<t>/(functions\.php|inc/)
+# Java API:   ^services/api/                       ^contracts/

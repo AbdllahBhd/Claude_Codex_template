@@ -7,9 +7,12 @@
 
 Run this loop IN ORDER — never skip a step, never reorder:
 
-1. **Gate:** ALL quality gates green — this is the moment the FULL test suite
-   runs (per-step stops only enforce the lint/typecheck floor; see
-   "Verification economy" in workflow.md). Never merge on a partial gate.
+1. **Gate, scoped by the branch diff:** run `bash scripts/gate-scope.sh` and
+   verify at the tier it prints — `cosmetic`: lint + look at the rendered
+   result; `targeted`: lint/typecheck + the tests covering the listed files;
+   `full`: the complete suite. Say the tier in the briefing. Never merge with a
+   failing gate. The full suite is still mandatory before a release and
+   whenever the user asks.
 2. **Review:** run an adversarial review of the diff (`code-reviewer` agent, or
    superpowers `requesting-code-review` when installed). Fix every finding that
    affects correctness or requirements; list the ones deliberately skipped and why.

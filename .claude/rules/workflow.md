@@ -129,10 +129,14 @@ radius FIRST, verify accordingly, and say which level you chose and why:
 
 Avoid re-running what cannot have changed: record in `task_plan.md` which
 suites ran green at which commit; a suite needs re-running only when later
-diffs touch code it covers. The FULL gate is mandatory at exactly three
-moments: merge to `develop` (delivery.md step 1), release, and when the user
-asks. The Stop hook enforces the floor (lint + typecheck) and defers the full
-suite to the delivery gate by design (`DONE_GATE_FULL=1` forces it per stop).
+diffs touch code it covers. The merge gate is scoped by `scripts/gate-scope.sh`
+(cosmetic / targeted / full, driven by the project's `.claude/gate-core-paths`;
+no file = full, the safe default). The FULL suite is mandatory before a
+release and when the user asks. The Stop hook enforces the floor (lint +
+typecheck); `DONE_GATE_FULL=1` forces the full suite on a stop.
+Code that is UI-in-code (Dart widgets, JSX/TSX) cannot be classified by file
+type: there the scope comes from the core-paths file plus targeted tests for
+the touched feature.
 
 ## Primary sources for external facts
 
