@@ -31,11 +31,37 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/validate-code.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-code.sh\""
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/sync-codex-on-edit.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-codex-on-edit.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/skill-nudge.sh\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/repo-guard.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-guard.sh\"",
+            "timeout": 10
           }
         ]
       }
@@ -45,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/done-gate.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/done-gate.sh\"",
             "timeout": 300
           }
         ]

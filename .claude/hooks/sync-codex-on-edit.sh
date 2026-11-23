@@ -25,6 +25,10 @@ case "$NORMALISED" in
   *) exit 0 ;;
 esac
 
+# Hooks run in Claude's current directory, which may be a subfolder.
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+cd "$ROOT" 2>/dev/null || exit 0
+
 [ -f scripts/sync-codex.sh ] || exit 0
 
 if bash scripts/sync-codex.sh >/dev/null 2>&1; then
