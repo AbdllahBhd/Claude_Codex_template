@@ -13,9 +13,12 @@ Run this loop IN ORDER — never skip a step, never reorder:
    `full`: the complete suite. Say the tier in the briefing. Never merge with a
    failing gate. The full suite is still mandatory before a release and
    whenever the user asks.
-2. **Review:** run an adversarial review of the diff (`code-reviewer` agent, or
-   superpowers `requesting-code-review` when installed). Fix every finding that
-   affects correctness or requirements; list the ones deliberately skipped and why.
+2. **Review:** run ONE adversarial review (`code-reviewer` agent, or
+   superpowers `requesting-code-review`) of the commits no earlier review saw —
+   the whole branch diff unless per-task reviews already covered it (workflow.md,
+   Adversarial review). Fix every finding that affects correctness or
+   requirements, re-check only the fix diff; list the findings deliberately
+   skipped and why.
 3. **Commit** on the feature branch — Conventional Commits per pr.md
    (`feat: ...`, imperative, ≤72 chars).
 4. **Merge to `develop`:**
@@ -30,9 +33,12 @@ Run this loop IN ORDER — never skip a step, never reorder:
 5. **Propose the next task:** suggest it with one line of reasoning (from
    task_plan.md, the roadmap, or open issues), and wait for the user's pick or
    confirmation.
-6. **Start it cleanly:** create the branch `<type>/<short-description>`
-   (naming per pr.md) from `develop`, recommend a fresh session for the new
-   task, and continue there.
+6. **Start it cleanly — in a NEW session:** create the branch
+   `<type>/<short-description>` (naming per pr.md) from `develop`, make sure
+   `task_plan.md` holds everything the next task needs, then STOP and tell the
+   user to start a fresh session (or `/clear`) for it. Never continue the next
+   task in the current session: carrying finished work forward is the single
+   biggest cost in audited projects.
 
 ## Multitask opportunities
 
