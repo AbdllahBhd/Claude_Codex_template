@@ -1,0 +1,8 @@
+# Shell scripts and hooks must keep LF line endings: CRLF breaks bash
+# ("$'\r': command not found") when a Windows checkout is used from WSL/Linux.
+*.sh text eol=lf
+.claude/hooks/* text eol=lf
+.claude/skills/*/hooks/* text eol=lf
+
+# Windows batch files need CRLF.
+scripts/*.cmd text eol=crlf

@@ -164,7 +164,7 @@ your-project/
 ├── CLAUDE.local.md      ← same idea, but personal/machine-specific (not in git)
 ├── AGENTS.md            ← tells Codex (and Cursor/Gemini) to read CLAUDE.md
 ├── CATALOG.md           ← menu of 40 optional tools, installed via /install
-├── .mcp.json            ← external tools for the AI (GitHub, databases...)
+├── .mcp.json            ← external tools for the AI (ships empty — add what you use)
 ├── .gitignore           ← keeps personal files and secrets out of git
 ├── .agents/skills/      ← Codex's copy of skills (auto-generated — don't edit)
 ├── .codex/config.toml   ← wires the safety hooks into Codex
@@ -176,7 +176,7 @@ your-project/
     ├── rules/               ← always-loaded conventions, one topic per file
     │   ├── code-style.md    ←   only NON-obvious style rules (the linter owns the rest)
     │   ├── pr.md            ←   branches, commit messages, PR habits
-    │   ├── workflow.md      ←   plan-first (council-reviewed plans), test-first, done criteria
+    │   ├── workflow.md      ←   plan-first (reviewed plans), test-first, done criteria, one task = one session
     │   ├── delivery.md      ←   feature done → review → merge to develop → next task
     │   └── reporting.md     ←   human-readable briefings, progress updates, context cleanup
     ├── commands/            ← shortcuts you type (one file = one command)
@@ -310,7 +310,7 @@ This table is the reminder of what's watching over each kind of work:
 | `testing-patterns` | write or review tests | Your test conventions: builders, mocking rules, anti-patterns |
 | `api-conventions` | design/modify an API | Endpoints, error envelope, validation, versioning rules |
 | `project-structure` | scaffold a project/module | The recognized folder layout per stack; when clean architecture is worth it |
-| `llm-council` | say "council this" / big decisions | 5 AI advisors analyze independently, peer-review, give a verdict — plans use it automatically |
+| `llm-council` *(opt-in: `bash scripts/activate-design.sh llm-council`)* | say "council this" / big decisions | 5 AI advisors analyze independently, peer-review, give a verdict — 11 agents per run, so plans use one reviewer by default |
 | **superpowers** (15 skills) | ...the big ones: | `systematic-debugging` (any bug: root-cause process, no guess-loops) · `test-driven-development` (red→green discipline) · `brainstorming` (before new features) · `writing-plans`/`executing-plans` (plan workflow) · `verification-before-completion` (evidence before "done") · `dispatching-parallel-agents` (parallel work) |
 
 **Shipped inert — activate per project type** (`bash scripts/activate-design.sh <name>`, see section 3 step 5):
@@ -337,11 +337,24 @@ Plain scripts — not AI — that fire on events:
   (the AI is forced to fix it immediately), warns about leftover
   `console.log`/`print` debug lines, and can auto-format (a Prettier line is
   included, commented out — enable it if you use Prettier).
-- **done-gate.sh** runs when the AI tries to finish: lint, typecheck, and tests
-  must pass, or the AI is sent back with the error output. To pause it
-  temporarily (e.g. a codebase with known-red tests), set `SKIP_DONE_GATE=1`.
-  It auto-detects npm projects; for other stacks (PHP, Python, Rust...), adjust
-  the marked section at the top of the script.
+- **done-gate.sh** runs when the AI tries to finish: lint and typecheck must
+  pass, or the AI is sent back with the error output (tests too with
+  `DONE_GATE_FULL=1`). It skips when nothing changed since its last pass, and
+  says **NOT RUN** instead of blocking when Docker/wp-env is down. Detects npm,
+  composer and Flutter/Dart; any other stack sets `DONE_GATE_CMD`. Settings
+  (in `.claude/settings.json` → `env`): `DONE_GATE_MODE=manual` for
+  localhost-first projects, `SKIP_DONE_GATE=1` to pause it.
+  The NOT RUN notice is shown to you, not to the AI — read it.
+- **session-guard.sh** runs on every prompt: when the branch changed, the
+  context passed ~250k tokens (`CONTEXT_WARN_TOKENS`), or `task_plan.md` grew
+  past 300 lines, the AI tells you in one line to start a fresh session,
+  `/compact`, or archive the plan. Long sessions were the #1 cost in real projects.
+- **repo-guard.sh** runs after shell commands: warns when the AI worked inside
+  another folder/repo (that work belongs in its own session).
+- **skill-nudge.sh** runs after edits: once per session, reminds the AI to
+  load `testing-patterns` / `ui-quality` when it edits test or UI files.
+- All hooks are called through `$CLAUDE_PROJECT_DIR`, so they work from any
+  subfolder; `bash scripts/test-hooks.sh` checks them all.
 How blocking works: a hook that exits with code 2 feeds its message back to the
 AI as something it must fix — that's the whole enforcement mechanism.
 On Windows, hooks run through Git Bash, which comes with Git — nothing to install.

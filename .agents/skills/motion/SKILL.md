@@ -1,6 +1,6 @@
 ---
 name: motion
-description: UI motion and animation rules. Use when adding, changing, or reviewing any animation, transition, or micro-interaction, in web or mobile (Flutter/native) UI.
+description: UI motion and animation rules (durations, easing, reduced-motion). Use BEFORE adding or changing any animation, transition, hover/press effect, page transition, skeleton/loading shimmer or micro-interaction — CSS transition/animation/@keyframes, Framer Motion, GSAP, Flutter AnimationController/AnimatedX/Hero.
 ---
 
 # Motion — animation rules that read as premium

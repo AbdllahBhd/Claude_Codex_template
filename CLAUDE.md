@@ -51,7 +51,8 @@ only sessions that touch an API pay for them.
 
 - When compacting this conversation, always preserve the full list of modified
   files, the current task plan status, and any test commands used.
-- Unrelated new task → suggest starting a fresh session instead of continuing here.
+- New task, branch or feature → a fresh session (or `/clear`) is required, not
+  optional (see workflow.md, Context discipline).
 
 ## Hard Constraints (always follow)
 

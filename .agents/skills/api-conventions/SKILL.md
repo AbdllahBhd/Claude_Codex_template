@@ -1,6 +1,6 @@
 ---
 name: api-conventions
-description: REST API design conventions for this project. Use when designing, implementing, or modifying any API endpoint, request/response shape, or error handling at the API boundary.
+description: REST API design conventions (endpoints, envelopes, errors, pagination, versioning). Use when creating or changing an API endpoint or its request/response — Express/Fastify routes, Next.js route handlers, FastAPI routers, WordPress register_rest_route / WP REST controllers, webhooks — or error handling at an API boundary.
 ---
 
 # API Conventions

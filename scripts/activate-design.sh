@@ -10,6 +10,7 @@
 #   bash scripts/activate-design.sh apple-design    # HIG reviewer — CLONED at activation
 #                                                   # (no license upstream, so it is fetched,
 #                                                   # git-ignored, and never committed)
+#   bash scripts/activate-design.sh llm-council     # 11-agent decision council (costly; opt-in)
 #   bash scripts/activate-design.sh off <name>      # deactivate (moves it back / deletes clone)
 #
 # ONE GENERATOR PER PROJECT (workflow.md): impeccable ships active. Activating
@@ -51,6 +52,10 @@ case "${1:-}" in
       rm -rf "$SK/$name"; cp -r "$d" "$SK/$name"
     done
     echo "Generator '$1' active."; sync ;;
+  llm-council)
+    rm -rf "$SK/llm-council"; cp -r "$OPT/llm-council" "$SK/llm-council"
+    echo "llm-council active: say 'council this' — each run spawns 11 agents."
+    sync ;;
   apple-design)
     rm -rf "$SK/apple-design"
     git clone --depth 1 https://github.com/dickwu/apple-design-skill "$SK/apple-design"
@@ -61,11 +66,12 @@ case "${1:-}" in
     n="${2:?usage: off <name>}"
     case "$n" in
       apple-design) rm -rf "$SK/apple-design" ;;
+      llm-council) rm -rf "$SK/llm-council" ".agents/skills/llm-council" ;;
       xias) for d in "$OPT/xias/skills"/*/; do rm -rf "$SK/$(basename "$d")"; done
             echo "NOTE: XIAS root assets (components/, tokens/...) left in place; remove manually if unwanted." ;;
       *) for d in "$OPT/$n"/*/; do rm -rf "$SK/$(basename "$d")"; done ;;
     esac
     echo "'$n' deactivated."; sync ;;
   *)
-    echo "usage: activate-design.sh <xias|ui-ux-pro-max|taste|apple-design> | off <name>"; exit 1 ;;
+    echo "usage: activate-design.sh <xias|ui-ux-pro-max|taste|apple-design|llm-council> | off <name>"; exit 1 ;;
 esac
