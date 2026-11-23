@@ -1,18 +1,4 @@
 {
-  "$comment": "Project-scoped MCP servers. Everyone who opens this project with Claude Code gets these servers (after approving them once). Uncomment / edit the examples you need, delete the ones you don't.",
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
-      "$comment": "Gives structured filesystem access to the project directory."
-    },
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-      },
-      "$comment": "GitHub issues/PRs/repos. Set GITHUB_TOKEN in your environment, never hardcode it here."
-    }
-  }
+  "$comment": "Project-scoped MCP servers: everyone who opens this project gets them (after a one-time approval). Ships EMPTY on purpose: every server adds its tool schemas to every session, and a 5-project audit found the old defaults (filesystem, github) unused — built-in file tools and the gh CLI cover them. Add only servers this project really uses; examples are in CATALOG.md (MCP servers). Secrets: reference env vars like ${GITHUB_TOKEN}, never hardcode.",
+  "mcpServers": {}
 }

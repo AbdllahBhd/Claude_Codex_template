@@ -1,6 +1,6 @@
 ---
 name: project-structure
-description: Recognized folder structures and architecture choices per technology stack. Use when scaffolding a new project or module, proposing a folder layout, or deciding whether clean architecture fits.
+description: Recognized folder structures per stack (Flutter, Next.js, Node, FastAPI, WordPress plugin/theme/WooCommerce, Laravel, monorepo). Use when scaffolding a new project, plugin, theme, package or module, creating a new top-level folder, proposing a folder layout, or deciding whether clean architecture fits.
 ---
 
 # Project Structure — recognized layouts per stack
@@ -65,6 +65,26 @@ app/
 ├── models/  schemas/  services/  repositories/
 tests/
 ```
+
+## WordPress (plugin + theme, WooCommerce)
+
+```
+wp-content/
+├── plugins/<prefix>-core/          # business logic lives in a PLUGIN, never the theme
+│   ├── <prefix>-core.php           # header + bootstrap only
+│   ├── includes/                   # PSR-4 classes (src/ also common): Admin/, Rest/, Woo/...
+│   ├── assets/  languages/         # built JS/CSS, .pot/.po/.mo
+│   ├── tests/                      # PHPUnit (WP_UnitTestCase), mirrors includes/
+│   └── composer.json  phpcs.xml  phpunit.xml
+└── themes/<prefix>-theme/          # presentation only (block theme: theme.json,
+    ├── templates/  parts/  patterns/   templates/, parts/, patterns/)
+    └── functions.php               # enqueue + supports; no business logic
+.wp-env.json                        # local env (Docker), committed
+```
+- One unique prefix for functions, hooks, options, CPTs and text domain.
+- Shared code across several brand sites = one core plugin + thin per-brand
+  plugin/theme; each brand repo gets its own session.
+- Declare WooCommerce HPOS compatibility; never query `wp_posts` for orders.
 
 ## Laravel / PHP
 

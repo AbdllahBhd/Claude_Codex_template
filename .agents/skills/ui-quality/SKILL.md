@@ -1,6 +1,6 @@
 ---
 name: ui-quality
-description: Baseline premium UI/UX criteria. Use when creating or modifying any UI screen, component, page, or layout, and when reviewing UI changes — web or mobile.
+description: Baseline premium UI/UX criteria (hierarchy, spacing, states, accessibility). Use BEFORE creating or changing any screen, page, component or layout and when reviewing UI — files like *.tsx, *.jsx, *.vue, *.svelte, *.css/*.scss, Flutter widgets under lib/**/presentation or *_screen.dart/*_page.dart, WordPress templates/, parts/, patterns/, theme.json, block markup.
 ---
 
 # UI Quality — the premium baseline, applied without being asked
