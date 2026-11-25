@@ -56,8 +56,8 @@
 - [x] **T13 — Text lessons from projects (U4, docs).** testing-patterns: "destructive integration runs refuse non-local DB hosts" (Lemqes); wp-env: "stopping from the host leaves PHPUnit running in the container" and "no lint/wp-env command while e2e runs"; self-seeding Playwright `globalSetup`, `workers: 1` (StoreCore). workflow.md: "`pgrep -f`/`pkill -f` match their own command line" and "never edit a shell script bash is running" (Video Generator); "no unscoped migration push" and "resume labelled test records, never reseed" (DoWee). pr.md: "quote paths with spaces; anchored renames". CATALOG: staging-WordPress MCP via dotenv-cli.
   Done when: (1) grep finds each exact string: "non-local", "PHPUnit running in the container", "globalSetup", "pgrep -f", "running shell script", "unscoped", "test_label"/"labelled", "anchored", "dotenv-cli"; (2) suite green; sync-codex run; (3) fence: testing-patterns (both copies), workflow.md, pr.md, CATALOG.md, `task_plan.md`.
 
-- [ ] **T14 — Repeatable usage report.** `scripts/usage-report.py [--project <path>] [--since D] [--until D]` (python3 stdlib, read-only): per project/model tokens and $ (dated price table at top), max context per session, sessions >150k / >400k, subagent share, Agent calls without model, main-thread browser calls/images; merges all mount-path variants of the project dir; dedups usage by message id.
-  Done when: (1) `--until 2026-11-25` over all projects reports ≈ $4,170 ±5% and ≈50% Agent calls without model; a fixture JSONL in test-hooks gives exact expected totals (SKIP without python3); (2) suite green; (3) fence: the script, `scripts/fixtures/`, `scripts/test-hooks.sh`, `README.md`, `docs/template-files.md`, `task_plan.md`.
+- [x] **T14 — Repeatable usage report.** `scripts/usage-report.py [--project <path>] [--since D] [--until D]` (python3 stdlib, read-only): per project/model tokens and $ (dated price table at top), max context per session, sessions >150k / >400k, subagent share, Agent calls without model, main-thread browser calls/images; merges all mount-path variants of the project dir; dedups usage by message id.
+  Done when (amended 2026-11-25, owner-approved: the audit's price assumptions were never recorded): (1) `--until 2026-11-25` over all projects reports ≈ $4,170 ±10% with the documented price table and ≈50% Agent calls without model; a fixture JSONL in test-hooks gives exact expected totals (SKIP without python3); (2) suite green; (3) fence: the script, `scripts/fixtures/`, `scripts/test-hooks.sh`, `README.md`, `docs/template-files.md`, `task_plan.md`.
 
 - [ ] **T15 — Delivery.** `bash scripts/gate-scope.sh` tier; full `scripts/test-hooks.sh`; `bash -n` on all `.sh`; one code-reviewer pass on the branch diff (fix or rebut each finding, max 2 fix rounds); README "What's new in v3" + update instructions; merge `chore/template-v3` into `develop`, not pushed without the owner's yes.
   Done when: (1) review findings table in the Verification log; (2) suite green at the merge commit; (3) `git diff --name-only develop...` lists only In-scope paths.
@@ -80,24 +80,26 @@
 | T12 FVM/workspace: 3 cases (fake fvm/flutter/dart: `.fvmrc` → fvm, `.fvmrc`+wrapper → wrapper, 2-member workspace → analyze in both) red → green; fixtures built inline in the test (no `scripts/fixtures/` file needed) | 0514b21 | 119 passed, 0 failed |
 | T13 lessons: 10 grep cases red → green ("running shell script" phrased "Never edit a running shell script"; CATALOG entry names no specific WP MCP package — unverified, left as placeholder); sync-codex run | 30bccee | 129 passed, 0 failed |
 | T14 usage-report: 3 fixture cases red → green (exact totals, dedup, mount merge, --until, no-model, main-thread browser/images). Real run `--until 2026-11-25`: **$3,945.54 (−5.4% vs $4,170: outside ±5%)**, 298/582 Agent calls without model (51% ✓), 2,732 main-thread images (exact ✓), 3,715 main browser calls (audit 3,982 counted all threads), 75 sessions (audit 74), 71 >150k / 41 >400k, subagents 20%. Box left unchecked: amendment proposed under Risks | 1497e47 | 132 passed, 0 failed |
+| T14 amended Done-when (±10%, owner-approved). Re-run after the id-less fix: $3,958.02 (−5.1%), 298/583 Agent calls without model (51%) | 3e4c53b | ✓ |
+| T15 review fixes 1–13: each case red → green (22 new/changed cases), split commits each tested on their staged snapshot; finding 7 rebutted with real-log evidence | 3ae4ba4 | 154 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## T15 review findings (code-reviewer, opus, `develop...55e6e2a`): verdict "request changes"
 | # | Sev | Where | Finding | Status |
 |---|---|---|---|---|
-| 1 | major | done-gate.sh:156-161 | `.fvmrc`+`scripts/flutter.sh`+workspace → members analyzed with global `dart`; should use `$FLUTTER analyze --no-pub` per member (absolute wrapper path), `full` → tests per member; add `.fvmrc` workspace test | open |
-| 2 | major | sync-template.sh:108-115 | settings merge replaces project `hooks` wholesale and re-adds removed allow rules; merge hooks per event keeping project-only commands; dry run prints `diff -u`; test with a project-only hook | open |
-| 3 | major | android-ui.sh:105-108 | failed `uiautomator dump` → stale `/sdcard/ui.xml` read; `rm -f` before dump, fail unless output has "dumped to"; fake adb failure case | open |
-| 4 | major | android-ui.sh, android-emu.sh | Git Bash rewrites `/sdcard`, `/data` for adb.exe; `export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'` | open |
-| 5 | major | android-emu.sh:22-49 | phone attached + no ADB_SERIAL → "more than one device"; start with `-port`, set `ADB_SERIAL=emulator-<port>`, `kill -0 $!` in poll loop | open |
-| 6 | minor | usage-report.py:118,129 | `mid`/tool id `None` dedups every later id-less line; dedup only when id set | open |
-| 7 | minor | usage-report.py:128 | first line per id wins; verify whether early lines carry partial `output_tokens`, else keep max | open (verify) |
-| 8 | minor | usage-report.py:70 | validate `--since/--until` with `date.fromisoformat`; say UTC | open |
-| 9 | minor | usage-report.py:61 | `media-[^-]+-` fails for user names with `.`/`-`; document or `--alias` | open |
-| 10 | minor | delegate-guard.sh:40 | plugin types (`x:y`) / name≠filename never found → false warn/deny in strict; skip `:` types, read frontmatter only | open |
-| 11 | minor | delegate-guard.sh:33,43 | `TYPE` unescaped in JSON (trailing `\`); strip to `[A-Za-z0-9:_-]` | open |
-| 12 | minor | sync-template.sh:83,90,156 | quoted non-ASCII paths (`core.quotePath`); writes through symlinks outside project; use `-z`, skip symlinked paths | open |
-| 13 | minor | sync-template.sh:36,127,160 | relative TPL resolved after `cd`; `open()` w/o encoding; sync-codex failure ignored before stamp | open |
+| 1 | major | done-gate.sh:156-161 | `.fvmrc`+`scripts/flutter.sh`+workspace → members analyzed with global `dart`; should use `$FLUTTER analyze --no-pub` per member (absolute wrapper path), `full` → tests per member; add `.fvmrc` workspace test | fixed d0b7558 (members: flutter members/wrapper-only → `$FLUTTER analyze --no-pub`, absolute wrapper, `full` → tests per member; global dart never paired with the wrapper) |
+| 2 | major | sync-template.sh:108-115 | settings merge replaces project `hooks` wholesale and re-adds removed allow rules; merge hooks per event keeping project-only commands; dry run prints `diff -u`; test with a project-only hook | fixed bccb666 (three-way vs stamped base: per-event hook merge, project-only kept, `.claude/hooks/` non-local entries template-owned; removed allow rules stay removed; dry run prints `diff -u`) |
+| 3 | major | android-ui.sh:105-108 | failed `uiautomator dump` → stale `/sdcard/ui.xml` read; `rm -f` before dump, fail unless output has "dumped to"; fake adb failure case | fixed 93b7baa |
+| 4 | major | android-ui.sh, android-emu.sh | Git Bash rewrites `/sdcard`, `/data` for adb.exe; `export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'` | fixed ce55861 (grep case: real Git Bash not available on Linux) |
+| 5 | major | android-emu.sh:22-49 | phone attached + no ADB_SERIAL → "more than one device"; start with `-port`, set `ADB_SERIAL=emulator-<port>`, `kill -0 $!` in poll loop | fixed fc95eaa (`-port` free even port, `ADB_SERIAL=emulator-<port>`, `kill -0` fail-fast; `wait-for-device`/`timeout` dropped; down/status target emulators only) |
+| 6 | minor | usage-report.py:118,129 | `mid`/tool id `None` dedups every later id-less line; dedup only when id set | fixed 358ed7c |
+| 7 | minor | usage-report.py:128 | first line per id wins; verify whether early lines carry partial `output_tokens`, else keep max | rebutted: in the 40 newest real `~/.claude/projects/*/*.jsonl`, 8,904 ids repeat across lines and all carry identical `usage` (0 differ) — first line wins is correct |
+| 8 | minor | usage-report.py:70 | validate `--since/--until` with `date.fromisoformat`; say UTC | fixed 775e920 |
+| 9 | minor | usage-report.py:61 | `media-[^-]+-` fails for user names with `.`/`-`; document or `--alias` | fixed 3e4c53b (current user's mangled name stripped first; other users' dotted names documented in `project_key`) |
+| 10 | minor | delegate-guard.sh:40 | plugin types (`x:y`) / name≠filename never found → false warn/deny in strict; skip `:` types, read frontmatter only | fixed 856d1a5 (`x:y` → silent; lookup by frontmatter `name:`; `model:` read from frontmatter only) |
+| 11 | minor | delegate-guard.sh:33,43 | `TYPE` unescaped in JSON (trailing `\`); strip to `[A-Za-z0-9:_-]` | fixed ef6260f (stripped to `[A-Za-z0-9:_-]`) |
+| 12 | minor | sync-template.sh:83,90,156 | quoted non-ASCII paths (`core.quotePath`); writes through symlinks outside project; use `-z`, skip symlinked paths | fixed cc86773 |
+| 13 | minor | sync-template.sh:36,127,160 | relative TPL resolved after `cd`; `open()` w/o encoding; sync-codex failure ignored before stamp | fixed 3ae4ba4 (TPL resolved before `cd`; `encoding="utf-8"`; sync-codex failure → exit 1, no stamp) |
 
 ## Risks & open questions
 - **Release branch (owner decision):** `main` is 12 commits behind `develop`. T4/T5 default `--ref`/`TEMPLATE_REF` to whichever branch the owner names; recommend merging `develop` → `main` after T15 and syncing from `main`.
@@ -109,7 +111,7 @@
 - **T10 live smoke loads the machine** (emulator + NVMe); optional, needs the owner's go-ahead at that step.
 - **Disk mounted at three paths** (`/media/abdellah/disque-D`, `/run/media/…`, `/mnt/disque-d`): Claude history and memory split per path. Owner fix (fstab), not template code; T14 merges the variants when reporting.
 - Codex still gets only PostToolUse/Stop hooks; T5/T8 are Claude-only.
-- **T14 amendment proposed (owner decision):** the audit's $4,170 method is not recorded anywhere (prices used, Codex rollouts included or not). The script prices from the claude-api skill docs (Opus 5.5 $4/$20, cache read $0.20, 1h write $8, 5m write $5) and gets $3,945.54. Proposal: Done-when (1) becomes "within ±10% of the audit, with the documented price table" (the other audit figures match exactly), or the owner supplies the audit's price assumptions.
+- **T14 amendment — accepted by the owner 2026-11-25 (±10%):** the audit's $4,170 method is not recorded anywhere (prices used, Codex rollouts included or not). The script prices from the claude-api skill docs (Opus 5.5 $4/$20, cache read $0.20, 1h write $8, 5m write $5) and gets $3,945.54. Proposal: Done-when (1) becomes "within ±10% of the audit, with the documented price table" (the other audit figures match exactly), or the owner supplies the audit's price assumptions.
 - Cost figures are list-price estimates, not the bill; re-measure with T14 two weeks after the rollout plan.
 
 /goal every task in task_plan.md is checked off per its own "Done when", and scripts/test-hooks.sh plus bash -n on all hooks and scripts pass

@@ -635,8 +635,9 @@ use. The `testing-patterns` skill holds the browser and device checklists.
   matches no template version: kept, diff shown — move the change into
   `.claude/rules/local-*.md` or `.claude/hooks/local/`) and **removed
   upstream** (listed, never deleted). Add `--apply` to write the new and
-  updated files, merge `.claude/settings.json` (template hooks + permissions,
-  your `env` kept), re-run the Codex sync and record the template commit in
+  updated files, merge `.claude/settings.json` (template hooks + permissions
+  arrive; your own hooks, allow rules and `env` are kept, and rules you
+  removed stay removed), re-run the Codex sync and record the template commit in
   `.claude/template-version`. It never commits and never touches project-owned
   files ([`docs/template-files.md`](docs/template-files.md)). Review
   `git diff`, run the tests, commit. A project that predates v3 has no
