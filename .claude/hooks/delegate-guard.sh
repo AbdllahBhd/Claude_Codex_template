@@ -38,7 +38,8 @@ context() {
 case "$TOOL" in
   Agent|Task)
     [ -n "$(field model)" ] && exit 0
-    TYPE=$(field subagent_type); TYPE=${TYPE:-general-purpose}
+    # Sanitised: it goes into the JSON reply unescaped.
+    TYPE=$(field subagent_type | tr -cd 'A-Za-z0-9:_-'); TYPE=${TYPE:-general-purpose}
     # A plugin agent (plugin:name) lives outside these folders: its model is unknowable here.
     case "$TYPE" in *:*) exit 0 ;; esac
     # Claude Code matches the frontmatter `name:`, not the file name; project wins over user.

@@ -288,6 +288,7 @@ else
   [ $RC -eq 0 ] && ok "agent found by frontmatter name, not file name" || bad "name lookup" "rc=$RC $OUT"
   printf -- '---\nname: body-only\n---\nmodel: sonnet in the body\n' >"$R/.claude/agents/body-only.md"
   OUT=$(dg "" "$(ag a8 body-only)"); has "$OUT" "additionalContext" && ok "model: in the body (not frontmatter) does not count" || bad "body model" "$OUT"
+  OUT=$(dg "" "$(ag a9 'x\\\"}')"); has "$OUT" '\' && bad "subagent_type escaped into JSON output" "$OUT" || ok "subagent_type sanitised before going into JSON"
   br() { printf '{"session_id":"%s","tool_name":"mcp__Claude_Browser__computer","tool_input":{"action":"screenshot"}%s}' "$1" "${2:+,\"agent_id\":\"$2\",\"agent_type\":\"general-purpose\"}"; }
   OUT=$(dg "" "$(br b1)"); has "$OUT" "sonnet" && has "$OUT" "subagent" && ok "main-thread browser call: reminder" || bad "browser remind" "$OUT"
   OUT=$(dg "" "$(br b1)"); [ -z "$OUT" ] && ok "browser reminder once per session" || bad "browser once" "$OUT"
