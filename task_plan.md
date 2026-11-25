@@ -99,7 +99,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
    In the main checkout, the branch and `HEAD` are unchanged (except at the merge, where `develop` is checked out), and `git diff --stat` is empty for every path in that list.
 4. **Merged:** `develop` contains the merge, the rollout worktree is removed, and the review findings are fixed or rebutted in the Verification log.
 
-- [ ] **T0 — Survey dry run (read-only).** Run steps 1–2 for all 10 projects. InstaReels gets a worktree cut from `main`. Then delete the branches and worktrees again.
+- [x] **T0 — Survey dry run (read-only).** Results are in the Verification log. Total estimate: about 7 h of hand-merging. Run steps 1–2 for all 10 projects. InstaReels gets a worktree cut from `main`. Then delete the branches and worktrees again.
   Done when: the Verification log has one row per project with its status counts and every "locally modified" and "removed upstream" path, and an effort estimate for each project. `git -C <P> branch --list chore/template-v3` is empty for all 10, and each main checkout's branch and `HEAD` are unchanged. No files changed outside `task_plan.md`.
 - [ ] **T1 — portfolio** (pilot). The settings diff gets extra care: this is the first real use of the round-1 settings-merge fix (6fcbc6c). If the method has to change, amend this plan before T2.
 - [ ] **T2 — Lemqes.** Settings: keep only the hooks it wants. Its develop wires done-gate, sync-codex-on-edit and validate-code. Ask the owner about repo-guard, session-guard and skill-nudge.
@@ -110,7 +110,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
 - [ ] **T7 — GRdLines.** Proof 2 must show `dart analyze` running per workspace member. Merge in `GRdLines-close-plan2`.
 - [ ] **T8 — UnityGames/game1.** Merge in `.claude/worktrees/chore-rules`.
 - [ ] **T9 — Video Generator.** Quote the path everywhere. There is no remote, so it is excluded from T12.
-- [ ] **T10 — InstaReels.** Owner decision first: create `develop` from `main` (per `delivery.md`), or sync onto a branch cut from `main` and merge into `main` only with the owner's yes.
+- [ ] **T10 — InstaReels.** Owner decision first: create `develop` from `main` (per `delivery.md`), or sync onto a branch cut from `main` and merge into `main` only with the owner's yes. Second owner decision: whether to take the 1157 vendored skill files. They are template-owned, so `--apply` adds them. If not, give the project a list of excluded paths to skip; that may need a sync-template option, logged for T11.
 - [ ] **T11 — Template follow-ups.** Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner.
   Done when: each follow-up line in the Verification log is either linked to a commit or marked deferred by the owner. The template's `bash scripts/test-hooks.sh` reports `failed: 0`. No files changed outside the template repo.
 - [ ] **T12 — Push (owner decision).** Ask once, listing the 9 pushable projects and their `develop` heads. On a yes, push each one and remove `/mnt/disque-d/Develope/_v3-rollout`.
@@ -119,6 +119,32 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
 ## Verification log
 | Project | Dry run (new / updated / locally modified / removed) | Settings hooks kept/dropped | Gates | Review | Merged |
 |---|---|---|---|---|---|
+| portfolio | T0: 17 / 16 / 6 / 2 · est. 20 min | T0: +delegate-guard | | | |
+| Lemqes | T0: 24 / 19 / 0 / 2 · est. 15 min | T0: +delegate-guard, +repo/session-guard, +skill-nudge (decide) | | | |
+| AllaghenBrand | T0: 19 / 15 / 6 / 2 · est. 45 min | T0: +delegate-guard | | | |
+| StoreCoreTemplate | T0: 16 / 8 / 4 / 0 · est. 30 min | T0: +delegate-guard | | | |
+| SghiraBrand | T0: 16 / 8 / 4 / 0 · est. 30 min | T0: +delegate-guard | | | |
+| DoWee | T0: 17 / 14 / 8 / 2 · est. 90 min | T0: +delegate-guard | | | |
+| GRdLines | T0: 26 / 16 / 4 / 2 · est. 60 min | T0: +delegate-guard, +repo/session-guard, +skill-nudge (decide) | | | |
+| UnityGames/game1 | T0: 26 / 17 / 2 / 2 · est. 45 min | T0: +delegate-guard, +repo/session-guard, +skill-nudge (decide) | | | |
+| Video Generator | T0: 24 / 16 / 3 / 2 · est. 25 min | T0: +delegate-guard, +repo/session-guard, +skill-nudge (decide) | | | |
+| InstaReels | T0 (from `main`): 1157 / 1 / 9 / 2 · est. 60 min + vendored-skills decision | T0: all 6 above + done-gate (decide) | | | |
+
+**T0 detail (2026-11-25, template 918b981).** Drift is measured as lines that differ from the closest template version the file was built on (commit in brackets), not from v3. It is the size of the project's own edit.
+- **Removed upstream** (every project except SghiraBrand and StoreCore): `.claude/skills/llm-council/SKILL.md` and `.agents/skills/llm-council/SKILL.md`. The default is to delete them, because llm-council now ships in `skills-optional/`.
+- **Locally modified, drift in lines:**
+  - **portfolio:** done-gate 7, skill-nudge 2, workflow.md 6, .gitattributes 13, AGENTS.md 2, test-hooks.sh 12.
+  - **AllaghenBrand:** done-gate 21, delivery.md 12, pr.md 4, workflow.md 77, .gitattributes 9, test-hooks.sh 49.
+  - **StoreCoreTemplate:** done-gate 18, .gitattributes 13, AGENTS.md 4, test-hooks.sh 25.
+  - **SghiraBrand:** done-gate 8, delivery.md 10, .gitattributes 15, test-hooks.sh 38.
+  - **DoWee:** done-gate 75, validate-code 14, code-style.md 25, delivery.md 13, pr.md 18, reporting.md 58, workflow.md 162, test-hooks.sh 35.
+  - **GRdLines:** done-gate 120, sync-codex-on-edit 3, code-style.md 21, reporting.md 5.
+  - **UnityGames/game1:** done-gate 108, workflow.md 5.
+  - **Video Generator:** done-gate 9, workflow.md 3, CATALOG.md 34.
+  - **InstaReels:** deepen (skill + command) 2+2, retro (skill + command) 10+10, pr.md 6, reporting.md 5, workflow.md 151, .codex/config.toml 8, AGENTS.md 29.
+- **InstaReels "new" = 1157:** almost all of these are vendored skill packs it never had: `skills-optional/xias` 382, `ui-ux-pro-max` 263, `taste` 39, `skills/superpowers` 238, `impeccable` 58+58.
+- **Hooks:** delegate-guard is new in v3, so it is expected everywhere. The other re-added hooks predate v3. Check `git log -p .claude/settings.json` for each project to see whether they were dropped on purpose.
+- **Clean-up check:** every dry run exited 0 and wrote nothing. Afterwards all 10 main checkouts had the same branch and HEAD (compared before and after). No `chore/template-v3` branch and no `_v3-rollout` worktree are left.
 
 ## Risks & open questions
 - **Plan reviewed 2026-11-25** (code-reviewer, opus): 4 critical, 4 high and 2 medium findings, all addressed above. The fixes:
