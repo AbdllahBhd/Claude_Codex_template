@@ -561,18 +561,24 @@ versus locked to one tool (🔒).
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
-- **Pull template updates into an existing project** (works even though you
-  deleted the template's `.git` when copying — the project's own repo just
-  re-links). One-time setup per project:
+- **Pull template updates into an existing project** with
+  `scripts/sync-template.sh` (needs a local clone of the template; python3 for
+  the settings merge). From the project root:
   ```bash
-  git remote add template <your-template-repo-url>
-  git fetch template
-  git merge template/main --allow-unrelated-histories -X ours
+  bash scripts/sync-template.sh ~/path/to/template --ref main
   ```
-  `-X ours` keeps YOUR version of every shared file (your CLAUDE.md, adapted
-  hooks...) and brings in only new template files — review, run the sync,
-  commit. Every later update is just `git fetch template && git merge
-  template/main`: a normal merge where only real line-level overlaps conflict.
+  That is a dry run: it lists **new**, **updated** (your copy equals an older
+  template version, so it is safe to replace), **locally modified** (your copy
+  matches no template version: kept, diff shown — move the change into
+  `.claude/rules/local-*.md` or `.claude/hooks/local/`) and **removed
+  upstream** (listed, never deleted). Add `--apply` to write the new and
+  updated files, merge `.claude/settings.json` (template hooks + permissions,
+  your `env` kept), re-run the Codex sync and record the template commit in
+  `.claude/template-version`. It never commits and never touches project-owned
+  files ([`docs/template-files.md`](docs/template-files.md)). Review
+  `git diff`, run the tests, commit. A project that predates v3 has no
+  `sync-template.sh` yet: run the template's copy
+  (`bash ~/path/to/template/scripts/sync-template.sh ~/path/to/template`).
 
 **Committed (shared via git) vs. personal (git-ignored):**
 

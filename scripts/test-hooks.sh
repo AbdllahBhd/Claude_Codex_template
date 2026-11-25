@@ -185,6 +185,42 @@ if [ -f "$TF" ]; then
   [ -z "$UNLISTED" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$UNLISTED"
 else bad "docs/template-files.md exists"; fi
 
+echo "== v3 sync-template"
+SYNC="$TEMPLATE/scripts/sync-template.sh"
+if ! command -v python3 >/dev/null 2>&1; then echo "  SKIP sync-template (no python3)"
+elif [ ! -f "$SYNC" ]; then bad "scripts/sync-template.sh exists"
+else
+  T=$(new_repo); P=$(new_repo)
+  mkdir -p "$T/docs" "$T/.claude/hooks" "$T/.claude/rules"
+  cp "$TF" "$T/docs/template-files.md"
+  echo 'echo v1' >"$T/.claude/hooks/h.sh"; echo 'rule v1' >"$T/.claude/rules/r.md"; echo gone >"$T/.claude/rules/gone.md"
+  echo '{"hooks":{"Stop":["A"]},"permissions":{"allow":["Bash(ls)"]},"env":{}}' >"$T/.claude/settings.json"
+  git -C "$T" add -A && git -C "$T" commit -qm one
+  mkdir -p "$P/.claude"; cp -r "$T/.claude/hooks" "$T/.claude/rules" "$P/.claude/"
+  echo 'my own rule' >"$P/.claude/rules/r.md"
+  echo '{"hooks":{"Stop":["A"]},"permissions":{"allow":["Bash(ls)"]},"env":{"MY_KEY":"1"}}' >"$P/.claude/settings.json"
+  git -C "$P" add -A && git -C "$P" commit -qm project
+  echo 'echo v2' >"$T/.claude/hooks/h.sh"; echo 'rule v2' >"$T/.claude/rules/r.md"; git -C "$T" rm -q .claude/rules/gone.md
+  echo '{"hooks":{"Stop":["A","B"]},"permissions":{"allow":["Bash(ls)"]},"env":{}}' >"$T/.claude/settings.json"
+  git -C "$T" add -A && git -C "$T" commit -qm two
+  st() { (cd "$P" && bash "$SYNC" "$T" --ref main "$@" 2>&1); }
+  OUT=$(st); RC=$?
+  { has "$OUT" "updated" && has "$OUT" ".claude/hooks/h.sh"; } && ok "dry run: old unmodified hook listed as updated" || bad "dry updated" "rc=$RC $OUT"
+  printf '%s\n' "$OUT" | grep -q 'locally modified.*rules/r.md' && ok "dry run: edited rule listed as locally modified" || bad "dry modified" "$OUT"
+  printf '%s\n' "$OUT" | grep -q 'removed upstream.*gone.md' && ok "dry run: removed-upstream file listed" || bad "dry removed" "$OUT"
+  [ -z "$(git -C "$P" status --porcelain)" ] && ok "dry run leaves the project untouched" || bad "dry run wrote" "$(git -C "$P" status --porcelain)"
+  OUT=$(st --apply); RC=$?
+  [ "$(cat "$P/.claude/hooks/h.sh")" = "echo v2" ] && ok "--apply updates the old hook" || bad "apply hook" "rc=$RC $OUT"
+  [ "$(cat "$P/.claude/rules/r.md")" = "my own rule" ] && ok "--apply keeps the locally modified rule" || bad "apply rule"
+  [ -f "$P/.claude/rules/gone.md" ] && ok "--apply never deletes removed-upstream files" || bad "apply deleted"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["hooks"]["Stop"]==["A","B"] and d["env"]["MY_KEY"]=="1", d' "$P/.claude/settings.json" \
+    && ok "--apply merges template hooks and keeps the project env" || bad "settings merge" "$(cat "$P/.claude/settings.json")"
+  grep -q "$(git -C "$T" rev-parse HEAD)" "$P/.claude/template-version" 2>/dev/null && ok "--apply writes .claude/template-version" || bad "stamp" "$OUT"
+  git -C "$P" add -A && git -C "$P" commit -qm synced
+  OUT=$(st --apply); RC=$?
+  [ $RC -eq 0 ] && [ -z "$(git -C "$P" status --porcelain)" ] && has "$OUT" "no changes" && ok "second --apply: no changes" || bad "second apply" "rc=$RC $OUT $(git -C "$P" status --porcelain)"
+fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
