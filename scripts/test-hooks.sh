@@ -368,6 +368,8 @@ FAKE
   OUT=$(FAKE_DUMP_FAIL=1 ui "$FX/ui-form.xml" tap "Save"); RC=$?
   [ $RC -eq 1 ] && ! grep -q 'input tap' "$FU/adb.log" && has "$OUT" "uiautomator dump failed" && ok "failed dump: exit 1, stale ui.xml never read" || bad "dump failure" "rc=$RC $OUT $(cat "$FU/adb.log")"
   OUT=$(ui "$FX/ui-form.xml" tap "Save"); grep -n 'rm -f /sdcard/ui.xml' "$FU/adb.log" | grep -q '^1:' && ok "dump removes the old ui.xml first" || bad "dump rm" "$(cat "$FU/adb.log")"
+  for s in "$UI" "$EMU"; do grep -q "MSYS_NO_PATHCONV=1" "$s" && grep -q "MSYS2_ARG_CONV_EXCL" "$s" || miss="$miss $s"; done
+  [ -z "${miss:-}" ] && ok "android scripts stop Git Bash rewriting /sdcard and /data" || bad "MSYS path conversion" "$miss"; unset miss
 fi
 
 echo "== v3 browser/device guidance"

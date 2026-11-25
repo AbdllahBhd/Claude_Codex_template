@@ -13,6 +13,8 @@
 # Env: ADB_SERIAL (device; default: the only one), UI_POLL (secs between dumps).
 
 set -uo pipefail
+# Git Bash would rewrite /sdcard and /data into Windows paths for adb.exe.
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
 POLL="${UI_POLL:-1}"
 adb_() { adb ${ADB_SERIAL:+-s "$ADB_SERIAL"} "$@"; }

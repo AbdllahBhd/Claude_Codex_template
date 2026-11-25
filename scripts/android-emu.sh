@@ -12,6 +12,8 @@
 #      EMU_LOG (default $TMPDIR/android-emu.log).
 
 set -uo pipefail
+# Git Bash would rewrite /sdcard and /data into Windows paths for adb.exe.
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
 BOOT_TIMEOUT="${EMU_BOOT_TIMEOUT:-240}"
 POLL="${EMU_POLL:-2}"
