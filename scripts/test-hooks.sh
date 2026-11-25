@@ -340,12 +340,13 @@ echo "$*" >>"$FAKE_DIR/adb.log"
 case "$*" in
   *exec-out\ cat*) n=$(( $(cat "$FAKE_DIR/n" 2>/dev/null || echo 0) + 1 )); echo $n >"$FAKE_DIR/n"
     set -- $FAKE_DUMPS; [ "$n" -gt $# ] && n=$#; eval "cat \"\${$n}\"" ;;
+  *uiautomator\ dump*) [ -n "${FAKE_DUMP_FAIL:-}" ] && echo "ERROR: could not get idle state." || echo "UI hierchary dumped to: /sdcard/ui.xml" ;;
   *screencap*) printf 'PNGDATA' ;;
 esac
 exit 0
 FAKE
   chmod +x "$FU/adb"
-  ui() { rm -f "$FU/n" "$FU/adb.log"; env PATH="$FU:$PATH" FAKE_DIR="$FU" UI_POLL=0.1 FAKE_DUMPS="$1" bash "$UI" "${@:2}" 2>&1; }
+  ui() { rm -f "$FU/n" "$FU/adb.log"; env PATH="$FU:$PATH" FAKE_DIR="$FU" UI_POLL=0.1 FAKE_DUMPS="$1" FAKE_DUMP_FAIL="${FAKE_DUMP_FAIL:-}" bash "$UI" "${@:2}" 2>&1; }
   OUT=$(ui "$FX/ui-form.xml" tap "Save"); RC=$?
   [ $RC -eq 0 ] && grep -q 'input tap 300 1100' "$FU/adb.log" && ok "tap \"Save\" taps the bounds centre" || bad "tap" "rc=$RC $OUT $(cat "$FU/adb.log")"
   OUT=$(ui "$FX/ui-home.xml" tap "Add note"); RC=$?
@@ -364,6 +365,9 @@ FAKE
   OUT=$(ui "$FX/ui-home.xml" back); grep -q 'input keyevent 4' "$FU/adb.log" && ok "back sends keyevent 4" || bad "back"
   OUT=$(env ADB_SERIAL=emulator-5556 PATH="$FU:$PATH" FAKE_DIR="$FU" bash "$UI" key 66 2>&1; cat "$FU/adb.log")
   has "$OUT" "-s emulator-5556 shell input keyevent 66" && ok "ADB_SERIAL is passed to adb" || bad "serial" "$OUT"
+  OUT=$(FAKE_DUMP_FAIL=1 ui "$FX/ui-form.xml" tap "Save"); RC=$?
+  [ $RC -eq 1 ] && ! grep -q 'input tap' "$FU/adb.log" && has "$OUT" "uiautomator dump failed" && ok "failed dump: exit 1, stale ui.xml never read" || bad "dump failure" "rc=$RC $OUT $(cat "$FU/adb.log")"
+  OUT=$(ui "$FX/ui-form.xml" tap "Save"); grep -n 'rm -f /sdcard/ui.xml' "$FU/adb.log" | grep -q '^1:' && ok "dump removes the old ui.xml first" || bad "dump rm" "$(cat "$FU/adb.log")"
 fi
 
 echo "== v3 browser/device guidance"

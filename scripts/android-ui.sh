@@ -17,9 +17,16 @@ set -uo pipefail
 POLL="${UI_POLL:-1}"
 adb_() { adb ${ADB_SERIAL:+-s "$ADB_SERIAL"} "$@"; }
 
+# A failed dump leaves the previous ui.xml behind: delete it first and trust
+# the file only when uiautomator says it wrote it.
 dump() {
-  adb_ shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
-  adb_ exec-out cat /sdcard/ui.xml
+  local msg
+  adb_ shell rm -f /sdcard/ui.xml >/dev/null 2>&1
+  msg=$(adb_ shell uiautomator dump /sdcard/ui.xml 2>&1)
+  case "$msg" in
+    *"dumped to"*) adb_ exec-out cat /sdcard/ui.xml ;;
+    *) echo "android-ui: uiautomator dump failed: $(printf '%s' "$msg" | tr -d '\r' | tail -1)" >&2; return 1 ;;
+  esac
 }
 
 # One <node .../> per line, so grep/sed can work node by node.
@@ -41,7 +48,7 @@ has_text() { printf '%s' "$1" | grep -qF -e "text=\"$2\"" -e "content-desc=\"$2\
 
 tap() {
   local xml line b x1 y1 x2 y2
-  xml=$(dump)
+  xml=$(dump) || return 1
   line=$(printf '%s' "$xml" | nodes | grep -m1 -F -e "text=\"$1\"" -e "content-desc=\"$1\"")
   if [ -z "$line" ]; then
     echo "android-ui: no node with text or content-desc \"$1\" on screen" >&2
@@ -57,7 +64,7 @@ wait_for() {
   local secs="${2:-20}" xml title deadline
   deadline=$((SECONDS + secs))
   while :; do
-    xml=$(dump)
+    xml=$(dump 2>/dev/null)   # a dump fails while the UI animates: keep polling
     has_text "$xml" "$1" && return 0
     if title=$(anr "$xml"); then
       echo "android-ui: ANR dialog on screen: \"$title\" — the app's main thread is blocked; check: adb logcat -d | grep -A20 ANR" >&2
