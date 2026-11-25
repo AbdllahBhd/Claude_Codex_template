@@ -11,9 +11,11 @@
 #   updated           project copy equals an older template version -> safe to replace
 #   locally modified  project copy matches no template version -> kept, diff shown
 #   removed upstream  the template dropped it -> listed, never deleted
-# .claude/settings.json is "merged": template owns hooks + permissions, the
-# project keeps env and everything else (needs python3; without it the diff is
-# printed and the file is left alone).
+# .claude/settings.json is "merged" (three-way against the last synced
+# template version): template hooks + permissions arrive, project-only hooks and
+# allow rules stay, rules the project removed stay removed, the project keeps env
+# and everything else (needs python3; without it the diff is printed and the
+# file is left alone).
 # --apply copies new + updated files, merges settings.json, runs
 # scripts/sync-codex.sh and records the template commit in .claude/template-version.
 
@@ -89,30 +91,59 @@ while IFS= read -r path; do
   [ -n "$(git -C "$TPL" log -1 --format=%H "$COMMIT" -- "$path")" ] && REMOVED+=("$path")
 done < <(git ls-files)
 
-# settings.json: template hooks + permissions (allow/ask/deny lists unioned),
-# project env and other keys win; template env keys the project lacks are added.
+# settings.json, per hook event and permission list: template entries, minus
+# those the project removed since the last sync, plus the project's own.
+# Hook entries calling .claude/hooks/ (not local/) are template-owned: an old
+# one the template dropped is dropped too. Project env and other keys win.
 SETTINGS_CHANGED=""
 if [ -n "$SETTINGS" ]; then
   git -C "$TPL" show "$COMMIT:.claude/settings.json" >"$TMP/tpl-settings.json"
+  { [ -n "$BASE" ] && git -C "$TPL" show "$BASE:.claude/settings.json" 2>/dev/null; } >"$TMP/base-settings.json" \
+    || echo '{}' >"$TMP/base-settings.json"
   if [ ! -f .claude/settings.json ]; then
     cp "$TMP/tpl-settings.json" "$TMP/merged-settings.json"; SETTINGS_CHANGED=1
   elif ! command -v python3 >/dev/null 2>&1; then
     echo "settings  .claude/settings.json — python3 missing, not merged. Template version differs by:"
     diff -u .claude/settings.json "$TMP/tpl-settings.json"
   else
-    python3 - .claude/settings.json "$TMP/tpl-settings.json" "$TMP/merged-settings.json" <<'PY' || exit 1
+    python3 - .claude/settings.json "$TMP/tpl-settings.json" "$TMP/base-settings.json" "$TMP/merged-settings.json" <<'PY' || exit 1
 import json, sys
-proj, tpl = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
+proj, tpl, base = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:4])
+
+
+def commands(entry):
+    if isinstance(entry, str):
+        return [entry]
+    if isinstance(entry, dict):
+        return [h.get("command", "") for h in entry.get("hooks", []) if isinstance(h, dict)]
+    return []
+
+
+def template_hook(entry):
+    return any(".claude/hooks/" in c and ".claude/hooks/local/" not in c for c in commands(entry))
+
+
+def merge(t, mine, b, drop_mine=lambda x: False):
+    kept = [x for x in t if not (x in b and x not in mine)]
+    return kept + [x for x in mine if x not in t and not drop_mine(x)]
+
+
 out = dict(proj)
 for k, v in tpl.items():
     if k == "hooks":
-        out[k] = v
+        mine_h, base_h = proj.get(k, {}), base.get(k, {})
+        hooks = {}
+        for ev in list(v) + [e for e in mine_h if e not in v]:
+            merged = merge(v.get(ev, []), mine_h.get(ev, []), base_h.get(ev, []),
+                           lambda x, b=base_h.get(ev, []): x in b or template_hook(x))
+            if merged:
+                hooks[ev] = merged
+        out[k] = hooks
     elif k == "permissions":
         perms = dict(proj.get(k, {}))
         for pk, pv in v.items():
             if isinstance(pv, list):
-                mine = perms.get(pk, [])
-                perms[pk] = pv + [x for x in mine if x not in pv]
+                perms[pk] = merge(pv, perms.get(pk, []), base.get(k, {}).get(pk, []))
             else:
                 perms.setdefault(pk, pv)
         out[k] = perms
@@ -120,7 +151,7 @@ for k, v in tpl.items():
         out[k] = {**v, **proj.get(k, {})}
     else:
         out.setdefault(k, v)
-with open(sys.argv[3], "w", encoding="utf-8") as f:
+with open(sys.argv[4], "w", encoding="utf-8") as f:
     json.dump(out, f, indent=2, ensure_ascii=False)
     f.write("\n")
 PY
@@ -132,7 +163,11 @@ fi
 echo "Template: $TPL @ $REF (${COMMIT:0:12})${BASE:+, last synced ${BASE:0:12}}"
 for p in "${NEW[@]}"; do echo "new               $p"; done
 for p in "${UPDATED[@]}"; do echo "updated           $p"; done
-[ -n "$SETTINGS_CHANGED" ] && echo "merge             .claude/settings.json (template hooks/permissions, your env kept)"
+if [ -n "$SETTINGS_CHANGED" ]; then
+  echo "merge             .claude/settings.json (template hooks/permissions, your own hooks/rules/env kept)"
+  [ -f .claude/settings.json ] && diff -u --label "project/.claude/settings.json" --label "merged" \
+    .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
+fi
 for p in "${REMOVED[@]}"; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
 for p in "${MODIFIED[@]}"; do
   echo "locally modified  $p  (kept — move your change into .claude/rules/local-*.md or .claude/hooks/local/)"
