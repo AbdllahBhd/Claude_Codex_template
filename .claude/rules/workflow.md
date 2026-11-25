@@ -182,10 +182,31 @@ the touched feature.
   re-reads the whole context: in audited projects, 400k–970k-token sessions
   spanning up to 20 branches were 65–87% of all cost. `hooks/session-guard.sh`
   warns on a branch change and past 250k tokens — relay it, don't ignore it.
-- **Name the model on every subagent call.** Search, build, mechanical edits
-  and browser checks: `sonnet` (or `haiku` for pure lookups). Reviews,
-  architecture and hard debugging: the session model. An omitted model
-  inherits the most expensive one.
+- **Name the model on every subagent call** — an omitted model inherits the
+  most expensive one. Rule of thumb: a cheaper model is safe when the result
+  is OBJECTIVE (a test passes or fails, a script runs); keep the session
+  model where JUDGMENT decides quality.
+
+  | Task | Model |
+  |---|---|
+  | Run a test suite / analyzer, report failures — must return the exact command, exit code, the verbatim pass/fail count line and failing test names | `haiku` |
+  | Search, lookups, mechanical edits | `haiku` / `sonnet` |
+  | Scripted browser or emulator check (Playwright, flow click-through, `flutter test integration_test`, adb) — returns text, screenshots stay in the subagent | `sonnet` |
+  | Write tests for a clearly specified behavior (still red → green) | `sonnet` |
+  | Write/maintain Playwright or integration-test scripts | `sonnet` |
+  | Build from a tight brief | `sonnet` |
+  | Diagnose a failing/flaky test, hard bug, architecture | session model |
+  | Visual/UX judgment, test strategy for money/auth/concurrency | session model |
+  | Code review, security audit | session model |
+
+  Escalate, don't loop: if a cheaper subagent fails twice or returns
+  something you cannot verify, rerun that one step on the session model —
+  for a bug, via `systematic-debugging` (When things go wrong), not a third
+  blind retry.
+  Test runs and browser checks go to a subagent even on the same model —
+  running them in a long main thread re-reads its whole context per call
+  (audit: browser tests ~12% and unit tests ~6% of all usage, ~95% on Opus
+  in the main thread).
 - **Brief build subagents tightly:** the files to touch, the interfaces to
   keep, what done looks like, and a "read only what you need" line. Open-ended
   build agents ran to 15–64M tokens each in audited projects.
