@@ -543,6 +543,19 @@ that solves it — 30 seconds, always the current version, and the template stay
 tiny. The catalog also marks which memory tools are shared across both AIs (🔁)
 versus locked to one tool (🔒).
 
+### Android device scripts (Flutter / React Native / native apps)
+
+Ready-made, tested helpers, so sessions stop rewriting boot loops:
+
+```
+bash scripts/android-emu.sh up       # boot $AVD, wait until really booted (no blind sleep)
+bash scripts/android-emu.sh status   # devices, boot state, free RAM, heaviest processes
+bash scripts/android-emu.sh down     # stop the emulator + Gradle daemon (do it at task end)
+```
+
+`up` warns when `/data` is nearly full (installs fail) and says how to wipe it.
+Settings: `AVD`, `ADB_SERIAL`, `EMU_HEADLESS=1`, `EMU_BOOT_TIMEOUT` (default 240 s).
+
 ## 13. Growing and maintaining it
 
 - **New rule:** add a file under `.claude/rules/`, reference it from `CLAUDE.md`

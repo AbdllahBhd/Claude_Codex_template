@@ -283,6 +283,44 @@ fi
 grep -q 'parallel subagents per wave' "$TEMPLATE/.claude/rules/workflow.md" && ok "workflow.md fan-out cap" || bad "workflow.md fan-out cap"
 grep -q 'spawn_agent' "$TEMPLATE/AGENTS.md" && ok "AGENTS.md Codex fan-out cap" || bad "AGENTS.md Codex fan-out cap"
 
+echo "== v3 android-emu"
+EMU="$TEMPLATE/scripts/android-emu.sh"
+if [ ! -f "$EMU" ]; then bad "scripts/android-emu.sh exists"
+else
+  bash -n "$EMU" && ok "bash -n android-emu.sh" || bad "bash -n android-emu.sh"
+  FA=$(mktemp -d); AL="$FA/adb.log"
+  # fake adb: logs args; getprop flips to 1 after $FAKE_BOOT_AFTER calls; df reports $FAKE_DF_KB free
+  cat >"$FA/adb" <<'FAKE'
+#!/usr/bin/env bash
+echo "$*" >>"$FAKE_DIR/adb.log"
+case "$*" in
+  *getprop\ sys.boot_completed*) n=$(( $(cat "$FAKE_DIR/n" 2>/dev/null || echo 0) + 1 )); echo $n >"$FAKE_DIR/n"
+    [ "$n" -ge "${FAKE_BOOT_AFTER:-1}" ] && echo 1 || echo ;;
+  *df*) printf 'Filesystem 1K-blocks Used Available Use%% Mounted on\n/dev/block/dm-5 6000000 0 %s 9%% /data\n' "${FAKE_DF_KB:-4000000}" ;;
+  devices*) printf 'List of devices attached\nemulator-5554\tdevice\n' ;;
+esac
+exit 0
+FAKE
+  printf '#!/usr/bin/env bash\necho "$*" >>"$FAKE_DIR/emulator.log"\nsleep 30\n' >"$FA/emulator"
+  chmod +x "$FA/adb" "$FA/emulator"
+  emu() { (cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" AVD=test_avd EMU_POLL=0.1 EMU_LOG="$FA/emu.log" "$@" bash "$EMU" up 2>&1); }
+  R=$(new_repo)
+  OUT=$(emu FAKE_BOOT_AFTER=3 EMU_BOOT_TIMEOUT=10); RC=$?
+  [ $RC -eq 0 ] && has "$(cat "$FA/emulator.log" 2>/dev/null)" "-avd test_avd" && ok "up: launches the AVD and returns 0 once booted" || bad "up boots" "rc=$RC $OUT"
+  : >"$FA/n"; echo 0 >"$FA/n"
+  OUT=$(emu FAKE_BOOT_AFTER=999 EMU_BOOT_TIMEOUT=1); RC=$?
+  [ $RC -eq 1 ] && has "$OUT" "did not boot" && ok "up: exit 1 with a message on boot timeout" || bad "up timeout" "rc=$RC $OUT"
+  echo 0 >"$FA/n"
+  OUT=$(emu FAKE_BOOT_AFTER=1 EMU_BOOT_TIMEOUT=10 FAKE_DF_KB=200000); RC=$?
+  has "$OUT" "-wipe-data" && ok "up: low /data space prints -wipe-data advice" || bad "low space" "rc=$RC $OUT"
+  : >"$AL"
+  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" bash "$EMU" down 2>&1); RC=$?
+  grep -q '^emu kill' "$AL" && ok "down: adb emu kill" || bad "down" "rc=$RC $OUT $(cat "$AL")"
+  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" bash "$EMU" status 2>&1); RC=$?
+  [ $RC -eq 0 ] && has "$OUT" "emulator-5554" && has "$OUT" "boot" && ok "status: device and boot state" || bad "status" "rc=$RC $OUT"
+  pkill -f "$FA/emulator" 2>/dev/null
+fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
