@@ -78,7 +78,8 @@
 | T10 android-ui: 11 cases (fake adb + 3 fixture dumps: tap centre/content-desc/missing, wait-for appear/timeout/ANR, shot, type, back, ADB_SERIAL) red → green; `bash -n` ok. Live emulator smoke NOT run (needs owner go-ahead) | 050fe56 | 112 passed, 0 failed |
 | T11 guidance: 4 cases (sections + strings, .agents sync, launch.json.example parses, adb allow-list) red → green | fe0523b | 116 passed, 0 failed |
 | T12 FVM/workspace: 3 cases (fake fvm/flutter/dart: `.fvmrc` → fvm, `.fvmrc`+wrapper → wrapper, 2-member workspace → analyze in both) red → green; fixtures built inline in the test (no `scripts/fixtures/` file needed) | 0514b21 | 119 passed, 0 failed |
-| T13 lessons: 10 grep cases red → green ("running shell script" phrased "Never edit a running shell script"; CATALOG entry names no specific WP MCP package — unverified, left as placeholder); sync-codex run | T13 | 129 passed, 0 failed |
+| T13 lessons: 10 grep cases red → green ("running shell script" phrased "Never edit a running shell script"; CATALOG entry names no specific WP MCP package — unverified, left as placeholder); sync-codex run | 30bccee | 129 passed, 0 failed |
+| T14 usage-report: 3 fixture cases red → green (exact totals, dedup, mount merge, --until, no-model, main-thread browser/images). Real run `--until 2026-11-25`: **$3,945.54 (−5.4% vs $4,170: outside ±5%)**, 298/582 Agent calls without model (51% ✓), 2,732 main-thread images (exact ✓), 3,715 main browser calls (audit 3,982 counted all threads), 75 sessions (audit 74), 71 >150k / 41 >400k, subagents 20%. Box left unchecked: amendment proposed under Risks | T14 | 132 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## Risks & open questions
@@ -91,6 +92,7 @@
 - **T10 live smoke loads the machine** (emulator + NVMe); optional, needs the owner's go-ahead at that step.
 - **Disk mounted at three paths** (`/media/abdellah/disque-D`, `/run/media/…`, `/mnt/disque-d`): Claude history and memory split per path. Owner fix (fstab), not template code; T14 merges the variants when reporting.
 - Codex still gets only PostToolUse/Stop hooks; T5/T8 are Claude-only.
+- **T14 amendment proposed (owner decision):** the audit's $4,170 method is not recorded anywhere (prices used, Codex rollouts included or not). The script prices from the claude-api skill docs (Opus 5.5 $4/$20, cache read $0.20, 1h write $8, 5m write $5) and gets $3,945.54. Proposal: Done-when (1) becomes "within ±10% of the audit, with the documented price table" (the other audit figures match exactly), or the owner supplies the audit's price assumptions.
 - Cost figures are list-price estimates, not the bill; re-measure with T14 two weeks after the rollout plan.
 
 /goal every task in task_plan.md is checked off per its own "Done when", and scripts/test-hooks.sh plus bash -n on all hooks and scripts pass

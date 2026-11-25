@@ -403,6 +403,23 @@ lesson .claude/rules/workflow.md "pgrep -f"; lesson .claude/rules/workflow.md "r
 lesson .claude/rules/workflow.md "unscoped"; lesson .claude/rules/workflow.md "labelled"
 lesson .claude/rules/pr.md "anchored"; lesson CATALOG.md "dotenv-cli"
 
+echo "== v3 usage-report"
+UR="$TEMPLATE/scripts/usage-report.py"
+if ! command -v python3 >/dev/null 2>&1; then echo "  SKIP usage-report (no python3)"
+elif [ ! -f "$UR" ]; then bad "scripts/usage-report.py exists"
+else
+  ur() { python3 -I "$UR" --root "$TEMPLATE/scripts/fixtures/usage" --json "$@" 2>&1; }
+  chk() { printf '%s' "$1" | python3 -c "import json,sys; d=json.load(sys.stdin); $2" 2>&1; }
+  OUT=$(ur)
+  E=$(chk "$OUT" 'assert abs(d["total_usd"]-0.05286)<1e-9, d["total_usd"]; assert list(d["projects"])==["x-develope-demo"], d["projects"]; assert d["projects"]["x-develope-demo"]["sessions"]==2')
+  [ -z "$E" ] && ok "usage-report: exact total, dedup by message id, mount variants merged" || bad "usage total" "$E $OUT"
+  OUT=$(ur --until 2026-11-25)
+  E=$(chk "$OUT" 'assert abs(d["total_usd"]-0.05166)<1e-9, d["total_usd"]; assert abs(d["subagent_usd"]-0.0006)<1e-9, d["subagent_usd"]; assert (d["agent_calls"],d["agent_calls_no_model"])==(2,1); assert (d["main_browser_calls"],d["main_images"])==(1,1); assert (d["sessions_over_150k"],d["sessions_over_400k"])==(1,0); assert d["max_context"]["s1"]==200005')
+  [ -z "$E" ] && ok "usage-report: --until, subagent share, Agent-without-model, main-thread browser, context peaks" || bad "usage details" "$E $OUT"
+  OUT=$(python3 -I "$UR" --root "$TEMPLATE/scripts/fixtures/usage" 2>&1); RC=$?
+  [ $RC -eq 0 ] && has "$OUT" "x-develope-demo" && has "$OUT" "Prices as of" && ok "usage-report: text report" || bad "usage text" "rc=$RC $OUT"
+fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

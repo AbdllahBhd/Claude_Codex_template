@@ -566,6 +566,11 @@ use. The `testing-patterns` skill holds the browser and device checklists.
 
 ## 13. Growing and maintaining it
 
+- **See what sessions cost:** `python3 scripts/usage-report.py [--project .]
+  [--since 2026-11-01] [--until 2026-11-25] [--json]` — read-only; per project
+  and model $ (list-price estimate), context peaks, sessions past 150k/400k,
+  subagent share, Agent calls with no model, main-thread browser calls/images.
+  Update the dated price table at the top of the script when prices change.
 - **New rule:** add a file under `.claude/rules/`, reference it from `CLAUDE.md`
   with `@.claude/rules/your-file.md` (or just let `/retro` do it).
 - **New command:** drop a `.md` file in `.claude/commands/` → instantly a

@@ -1,0 +1,1 @@
+{"type":"assistant","sessionId":"s1","isSidechain":true,"timestamp":"2026-11-20T10:00:30Z","message":{"id":"m3","model":"claude-haiku-5-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":1000},"content":[{"type":"tool_use","id":"t4","name":"mcp__Claude_Browser__navigate","input":{"url":"x"}}]}}
