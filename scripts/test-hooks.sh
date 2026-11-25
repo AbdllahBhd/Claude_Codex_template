@@ -394,6 +394,13 @@ printf 'name: ws\nenvironment:\n  sdk: ^3.6.0\nworkspace:\n  - packages/core\n  
 printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
 OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && ok "pub workspace: dart analyze runs in every member" || bad "workspace" "rc=$RC $OUT $(cat "$FL")"
+: >"$FL"; mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.24.0"}' >"$W/.fvmrc"
+printf '#!/usr/bin/env bash\necho "wrapper $(basename "$PWD") $*" >>"%s"\n' "$FL" >"$W/scripts/flutter.sh"
+printf 'name: web\nresolution: workspace\ndependencies:\n  flutter:\n    sdk: flutter\n' >"$W/apps/web/pubspec.yaml"; echo c >>"$W/file.txt"
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+{ grep -q '^wrapper core analyze --no-pub' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^dart ' "$FL"; } \
+  && ok ".fvmrc wrapper + workspace: every member analyzed with the pinned wrapper" || bad "fvm workspace analyze" "rc=$RC $OUT $(cat "$FL")"
+grep -q '^wrapper core test' "$FL" && grep -q '^wrapper web test' "$FL" && ok "workspace + DONE_GATE_FULL: tests run per member" || bad "workspace tests" "rc=$RC $(cat "$FL")"
 
 echo "== v3 project lessons in the docs"
 lesson() { grep -qF -- "$2" "$TEMPLATE/$1" && ok "$1: $2" || bad "$1 lacks: $2"; }

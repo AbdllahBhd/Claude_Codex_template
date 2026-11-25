@@ -148,23 +148,34 @@ elif [ -f composer.json ] && command -v composer >/dev/null 2>&1; then
   full && has_composer_script test && run_gate "tests" composer run-script test
 elif [ -f pubspec.yaml ]; then
   # FVM-pinned projects must not run the global SDK; a project wrapper wins.
-  FLUTTER=""; DART=""
-  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then FLUTTER="bash scripts/flutter.sh"
-  elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER="fvm flutter"; DART="fvm dart"
-  elif command -v flutter >/dev/null 2>&1; then FLUTTER="flutter"
+  # Arrays + absolute wrapper path: members run from their own directory.
+  FLUTTER=(); DART=()
+  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then FLUTTER=(bash "$PWD/scripts/flutter.sh")
+  elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
+  elif command -v flutter >/dev/null 2>&1; then FLUTTER=(flutter)
   fi
-  [ -z "$DART" ] && command -v dart >/dev/null 2>&1 && DART="dart"
+  # The wrapper pins dart too: never pair it with the global dart.
+  [ ${#DART[@]} -eq 0 ] && [ "${FLUTTER[0]:-}" != bash ] && command -v dart >/dev/null 2>&1 && DART=(dart)
   MEMBERS=$(workspace_members)
-  if [ -n "$MEMBERS" ] && [ -n "$DART" ]; then
-    # A pub workspace root analyzes nothing useful on its own: run each member.
+  if [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
+    # A pub workspace root analyzes nothing useful on its own: run each member,
+    # Flutter members (and every member when only the pinned wrapper exists)
+    # with flutter, pure Dart members with dart.
     for m in $MEMBERS; do
-      [ -d "$m" ] && run_gate "analyze ${m//\//-}" in_dir "$m" $DART analyze
+      [ -d "$m" ] || continue
+      if [ ${#FLUTTER[@]} -gt 0 ] && { [ ${#DART[@]} -eq 0 ] || grep -qE 'sdk:[[:space:]]*flutter' "$m/pubspec.yaml" 2>/dev/null; }; then
+        run_gate "analyze ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" analyze --no-pub
+        full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" test
+      else
+        run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze
+        full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${DART[@]}" test
+      fi
     done
-  elif [ -n "$FLUTTER" ]; then
-    run_gate "analyze" $FLUTTER analyze --no-pub
-    full && run_gate "tests" $FLUTTER test
-  elif [ -n "$DART" ]; then
-    run_gate "analyze" $DART analyze
+  elif [ ${#FLUTTER[@]} -gt 0 ]; then
+    run_gate "analyze" "${FLUTTER[@]}" analyze --no-pub
+    full && run_gate "tests" "${FLUTTER[@]}" test
+  elif [ ${#DART[@]} -gt 0 ]; then
+    run_gate "analyze" "${DART[@]}" analyze
   fi
 fi
 
