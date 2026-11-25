@@ -303,11 +303,11 @@ case "$*" in
   *getprop\ sys.boot_completed*) n=$(( $(cat "$FAKE_DIR/n" 2>/dev/null || echo 0) + 1 )); echo $n >"$FAKE_DIR/n"
     [ "$n" -ge "${FAKE_BOOT_AFTER:-1}" ] && echo 1 || echo ;;
   *df*) printf 'Filesystem 1K-blocks Used Available Use%% Mounted on\n/dev/block/dm-5 6000000 0 %s 9%% /data\n' "${FAKE_DF_KB:-4000000}" ;;
-  devices*) printf 'List of devices attached\nemulator-5554\tdevice\n' ;;
+  devices*) printf 'List of devices attached\n%b\n' "${FAKE_DEVICES:-}" ;;
 esac
 exit 0
 FAKE
-  printf '#!/usr/bin/env bash\necho "$*" >>"$FAKE_DIR/emulator.log"\nsleep 30\n' >"$FA/emulator"
+  printf '#!/usr/bin/env bash\necho "$*" >>"$FAKE_DIR/emulator.log"\nsleep "${FAKE_EMU_LIFE:-30}"\n' >"$FA/emulator"
   chmod +x "$FA/adb" "$FA/emulator"
   emu() { (cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" AVD=test_avd EMU_POLL=0.1 EMU_LOG="$FA/emu.log" "$@" bash "$EMU" up 2>&1); }
   R=$(new_repo)
@@ -319,10 +319,19 @@ FAKE
   echo 0 >"$FA/n"
   OUT=$(emu FAKE_BOOT_AFTER=1 EMU_BOOT_TIMEOUT=10 FAKE_DF_KB=200000); RC=$?
   has "$OUT" "-wipe-data" && ok "up: low /data space prints -wipe-data advice" || bad "low space" "rc=$RC $OUT"
+  echo 0 >"$FA/n"; : >"$AL"; : >"$FA/emulator.log"
+  OUT=$(emu FAKE_BOOT_AFTER=2 EMU_BOOT_TIMEOUT=10 FAKE_DEVICES='R58M123\tdevice\nemulator-5554\toffline'); RC=$?
+  { [ $RC -eq 0 ] && has "$(cat "$FA/emulator.log")" "-port 5556" && grep -q -- '-s emulator-5556 shell getprop' "$AL" && ! grep -v -- '-s emulator-5556' "$AL" | grep -q getprop; } \
+    && ok "up with a phone attached: own -port, every adb call targets emulator-<port>" || bad "up + phone" "rc=$RC $OUT $(cat "$AL" "$FA/emulator.log")"
+  echo 0 >"$FA/n"; START=$SECONDS
+  OUT=$(emu FAKE_BOOT_AFTER=999 EMU_BOOT_TIMEOUT=10 FAKE_EMU_LIFE=0); RC=$?
+  [ $RC -eq 1 ] && has "$OUT" "exited" && [ $((SECONDS - START)) -lt 5 ] && ok "up: emulator that dies fails fast, not at the timeout" || bad "emu died" "rc=$RC $((SECONDS - START))s $OUT"
   : >"$AL"
-  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" bash "$EMU" down 2>&1); RC=$?
-  grep -q '^emu kill' "$AL" && ok "down: adb emu kill" || bad "down" "rc=$RC $OUT $(cat "$AL")"
-  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" bash "$EMU" status 2>&1); RC=$?
+  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" FAKE_DEVICES='R58M123\tdevice\nemulator-5554\tdevice' bash "$EMU" down 2>&1); RC=$?
+  grep -q '^-s emulator-5554 emu kill' "$AL" && ok "down: adb emu kill on the emulator" || bad "down" "rc=$RC $OUT $(cat "$AL")"
+  : >"$AL"; OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" FAKE_DEVICES='R58M123\tdevice' bash "$EMU" down 2>&1); RC=$?
+  ! grep -q 'emu kill' "$AL" && has "$OUT" "no emulator" && ok "down with only a phone: nothing killed" || bad "down phone" "rc=$RC $OUT $(cat "$AL")"
+  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" FAKE_DEVICES='emulator-5554\tdevice' bash "$EMU" status 2>&1); RC=$?
   [ $RC -eq 0 ] && has "$OUT" "emulator-5554" && has "$OUT" "boot" && ok "status: device and boot state" || bad "status" "rc=$RC $OUT"
   pkill -f "$FA/emulator" 2>/dev/null
 fi
