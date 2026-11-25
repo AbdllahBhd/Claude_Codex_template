@@ -72,6 +72,37 @@ it("rejects orders with an empty cart", async () => {
 - `freezegun` or an injected clock for time; `monkeypatch` at the boundary.
 - Targeted run: `pytest tests/path/test_x.py -q`.
 
+## Browser checks
+
+Run them in a `sonnet` subagent that returns text (workflow.md model table);
+the main thread never collects screenshots.
+- Take a screenshot after every navigate or resize and before any coordinate
+  click: coordinates from an older screenshot hit the wrong element. Prefer
+  `find` / `read_page` refs over coordinates, and page text over images.
+- Batch steps you can predict, ≤25 real actions per batch; re-screenshot
+  between batches.
+- Local pages: start them through `.claude/launch.json` (copy
+  `.claude/launch.json.example`; `python3 -m http.server` for static files),
+  never `file://` — paths with spaces break, and scripts/modules are blocked.
+- Canvas apps (Flutter web, games) have no DOM to read: verify through JS state
+  (`window.app…`) or the app's integration tests, not pixel hunting.
+- A "Leave site?" dialog blocks every later action: dismiss it first.
+- Codex `playwright-cli`: curl-retry the dev server until it answers before
+  `open` (`until curl -sf http://localhost:PORT >/dev/null; do sleep 1; done`).
+
+## Android/device checks
+
+- Use `scripts/android-emu.sh up|status|down` and `scripts/android-ui.sh`
+  (`wait-for`, `tap`, `dump`, `shot`) — never a hand-rolled boot loop or a
+  blind `sleep`.
+- Run `android-emu.sh status` first: an emulator, Gradle daemon or second
+  server already running halves the machine. One emulator and one dev server
+  per session, stopped (`android-emu.sh down`) at task end.
+- Read the `uiautomator dump` (`android-ui.sh dump` / `wait-for`) before taking
+  a screenshot; at most one screenshot per UI state, only to prove layout.
+- A flow you clicked through twice becomes a test:
+  `flutter test integration_test/<flow>_test.dart -d <device-id>`.
+
 ## Definition of done
 
 New logic is covered, the targeted tests pass, and coverage of the touched

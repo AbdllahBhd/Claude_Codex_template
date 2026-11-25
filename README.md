@@ -559,6 +559,10 @@ bash scripts/android-ui.sh dump                 # also: type "text" · key 66 ·
 
 `up` warns when `/data` is nearly full (installs fail) and says how to wipe it.
 Settings: `AVD`, `ADB_SERIAL`, `EMU_HEADLESS=1`, `EMU_BOOT_TIMEOUT` (default 240 s).
+Read-only adb commands (`devices`, `getprop`, `uiautomator dump`, `screencap`)
+are pre-allowed in `settings.json`. For browser previews, copy
+`.claude/launch.json.example` to `.claude/launch.json` and keep the entries you
+use. The `testing-patterns` skill holds the browser and device checklists.
 
 ## 13. Growing and maintaining it
 

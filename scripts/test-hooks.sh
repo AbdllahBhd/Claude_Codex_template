@@ -360,6 +360,24 @@ FAKE
   has "$OUT" "-s emulator-5556 shell input keyevent 66" && ok "ADB_SERIAL is passed to adb" || bad "serial" "$OUT"
 fi
 
+echo "== v3 browser/device guidance"
+TP="$TEMPLATE/.claude/skills/testing-patterns/SKILL.md"
+miss=""
+for k in "## Browser checks" "## Android/device checks" "≤25" "file://" "uiautomator dump" "android-ui.sh"; do grep -qF "$k" "$TP" || miss="$miss [$k]"; done
+[ -z "$miss" ] && ok "testing-patterns has browser + device sections" || bad "testing-patterns missing:$miss"
+diff -q "$TP" "$TEMPLATE/.agents/skills/testing-patterns/SKILL.md" >/dev/null && ok ".agents testing-patterns in sync" || bad ".agents testing-patterns out of sync"
+if command -v python3 >/dev/null 2>&1; then
+  python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$TEMPLATE/.claude/launch.json.example" 2>/dev/null && ok "launch.json.example parses" || bad "launch.json.example parses"
+  miss=$(python3 - "$TEMPLATE/.claude/settings.json" <<'PY'
+import json,sys
+allow=json.load(open(sys.argv[1]))["permissions"]["allow"]
+need=["adb devices","adb exec-out screencap","adb shell uiautomator dump","adb shell getprop"]
+print(" ".join(n for n in need if not any(a.startswith("Bash("+n) for a in allow)))
+PY
+)
+  [ -z "$miss" ] && ok "settings allows read-only adb" || bad "settings adb allow missing: $miss"
+else echo "  SKIP json checks (no python3)"; fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

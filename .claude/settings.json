@@ -15,7 +15,11 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(adb devices)",
+      "Bash(adb exec-out screencap:*)",
+      "Bash(adb shell uiautomator dump:*)",
+      "Bash(adb shell getprop:*)"
     ],
     "deny": [
       "Read(./.env)",
