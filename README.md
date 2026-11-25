@@ -365,6 +365,11 @@ Plain scripts — not AI — that fire on events:
   another folder/repo (that work belongs in its own session).
 - **skill-nudge.sh** runs after edits: once per session, reminds the AI to
   load `testing-patterns` / `ui-quality` when it edits test or UI files.
+- **delegate-guard.sh** runs before subagent and browser calls: once per
+  session, warns when a subagent call names no model (it would inherit the most
+  expensive one) and when the main thread drives the browser (move it to a
+  `sonnet` subagent). Settings `env`: `DELEGATE_GUARD=strict` blocks model-less
+  subagent calls, `=off` silences it. Agents whose file sets `model:` are exempt.
 - All hooks are called through `$CLAUDE_PROJECT_DIR`, so they work from any
   subfolder; `bash scripts/test-hooks.sh` checks them all.
 How blocking works: a hook that exits with code 2 feeds its message back to the

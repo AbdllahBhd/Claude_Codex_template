@@ -36,7 +36,7 @@ echo "== T1 wired commands run from a subdirectory"
 R=$(new_repo)
 mkdir -p "$R/.claude" "$R/scripts"; cp -r "$HOOKS" "$R/.claude/hooks"
 printf '#!/usr/bin/env bash\ntouch .synced\n' >"$R/scripts/sync-codex.sh"
-for h in validate-code sync-codex-on-edit done-gate session-guard repo-guard skill-nudge; do
+for h in validate-code sync-codex-on-edit done-gate session-guard repo-guard skill-nudge delegate-guard; do
   C=$(wired_cmd "$h.sh")
   if [ -z "$C" ]; then bad "$h is wired in settings.json"; continue; fi
   has "$C" '$CLAUDE_PROJECT_DIR' || bad "$h command uses \$CLAUDE_PROJECT_DIR" "$C"
@@ -256,6 +256,32 @@ else bad "next.md exists"; fi
 grep -q '`/next`' "$TEMPLATE/README.md" && ok "README lists /next" || bad "README lists /next"
 grep -q '/next' "$TEMPLATE/.claude/rules/delivery.md" && ok "delivery.md points to /next" || bad "delivery.md points to /next"
 [ -f "$TEMPLATE/.agents/skills/next/SKILL.md" ] && ok ".agents/skills/next mirrored" || bad ".agents/skills/next mirrored"
+
+echo "== v3 delegate-guard"
+DG="$HOOKS/delegate-guard.sh"
+if [ ! -f "$DG" ]; then bad "delegate-guard.sh exists"
+else
+  R=$(new_repo); mkdir -p "$R/.claude/agents"
+  printf -- '---\nname: code-reviewer\nmodel: inherit\n---\n' >"$R/.claude/agents/code-reviewer.md"
+  dg() { printf '%s' "$2" | CLAUDE_PROJECT_DIR="$R" DELEGATE_GUARD="$1" bash "$DG" 2>&1; }
+  ag() { printf '{"session_id":"%s","tool_name":"Agent","tool_input":{"description":"d","prompt":"say \\"model\\": x","subagent_type":"%s"%s}}' "$1" "$2" "${3:+,\"model\":\"$3\"}"; }
+  OUT=$(dg "" "$(ag a1 general-purpose)"); RC=$?
+  [ $RC -eq 0 ] && has "$OUT" "additionalContext" && has "$OUT" "workflow.md" && ok "Agent without model: warning, not deny" || bad "no-model warn" "rc=$RC $OUT"
+  OUT=$(dg "" "$(ag a1 general-purpose)"); [ -z "$OUT" ] && ok "warning once per session" || bad "warn once" "$OUT"
+  OUT=$(dg "" "$(ag a2 code-reviewer)"); [ -z "$OUT" ] && ok "agent file with explicit model (inherit): silent" || bad "code-reviewer silent" "$OUT"
+  OUT=$(dg "" "$(ag a3 general-purpose sonnet)"); [ -z "$OUT" ] && ok "Agent with model: silent" || bad "with model" "$OUT"
+  OUT=$(dg strict "$(ag a4 general-purpose)"); RC=$?
+  [ $RC -eq 2 ] && has "$OUT" "model" && ok "DELEGATE_GUARD=strict denies (exit 2)" || bad "strict" "rc=$RC $OUT"
+  OUT=$(dg off "$(ag a5 general-purpose)"); RC=$?
+  [ $RC -eq 0 ] && [ -z "$OUT" ] && ok "DELEGATE_GUARD=off: silent" || bad "off" "rc=$RC $OUT"
+  br() { printf '{"session_id":"%s","tool_name":"mcp__Claude_Browser__computer","tool_input":{"action":"screenshot"}%s}' "$1" "${2:+,\"agent_id\":\"$2\",\"agent_type\":\"general-purpose\"}"; }
+  OUT=$(dg "" "$(br b1)"); has "$OUT" "sonnet" && has "$OUT" "subagent" && ok "main-thread browser call: reminder" || bad "browser remind" "$OUT"
+  OUT=$(dg "" "$(br b1)"); [ -z "$OUT" ] && ok "browser reminder once per session" || bad "browser once" "$OUT"
+  OUT=$(dg "" "$(br b2 ag-1)"); [ -z "$OUT" ] && ok "browser call inside a subagent: silent" || bad "browser in subagent" "$OUT"
+  grep -q 'delegate-guard.sh' "$TEMPLATE/.claude/settings.json" && ok "settings.json wires delegate-guard" || bad "wired"
+fi
+grep -q 'parallel subagents per wave' "$TEMPLATE/.claude/rules/workflow.md" && ok "workflow.md fan-out cap" || bad "workflow.md fan-out cap"
+grep -q 'spawn_agent' "$TEMPLATE/AGENTS.md" && ok "AGENTS.md Codex fan-out cap" || bad "AGENTS.md Codex fan-out cap"
 
 echo
 echo "passed: $PASS  failed: $FAIL"

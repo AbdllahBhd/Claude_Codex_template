@@ -212,6 +212,11 @@ the touched feature.
 - **Brief build subagents tightly:** the files to touch, the interfaces to
   keep, what done looks like, and a "read only what you need" line. Open-ended
   build agents ran to 15–64M tokens each in audited projects.
+- **Fan-out cap:** at most 4–6 parallel subagents per wave; wait for the wave
+  before starting the next. Implementer subagents report back after ~60 turns
+  (what is done, what is left) instead of running open-ended — the caller then
+  decides to continue, re-brief or split. `hooks/delegate-guard.sh` warns once
+  per session on a subagent call with no model (`DELEGATE_GUARD=strict` denies).
 - **Screenshots stay out of the main thread.** Visual checks run in a
   subagent that returns text ("button clipped at 375px"); never re-read the
   same image. Each image is re-paid on every later message.
