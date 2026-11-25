@@ -378,6 +378,23 @@ PY
   [ -z "$miss" ] && ok "settings allows read-only adb" || bad "settings adb allow missing: $miss"
 else echo "  SKIP json checks (no python3)"; fi
 
+echo "== v3 done-gate FVM + Dart workspace"
+FF=$(mktemp -d); FL="$FF/calls.log"
+for b in fvm flutter dart; do printf '#!/usr/bin/env bash\necho "%s $*" >>"%s"\nexit 0\n' "$b" "$FL" >"$FF/$b"; chmod +x "$FF/$b"; done
+BASEP=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -e flutter -e fvm -e dart | paste -sd: -)
+R=$(new_repo); printf 'name: app\n' >"$R/pubspec.yaml"; echo '{"flutter":"3.24.0"}' >"$R/.fvmrc"
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^fvm flutter analyze' "$FL" && ! grep -q '^flutter ' "$FL" && ok ".fvmrc: gate runs fvm flutter analyze, not plain flutter" || bad "fvm" "rc=$RC $OUT $(cat "$FL")"
+: >"$FL"; mkdir -p "$R/scripts"; printf '#!/usr/bin/env bash\necho "wrapper $*" >>"%s"\n' "$FL" >"$R/scripts/flutter.sh"; echo c >>"$R/file.txt"
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^wrapper analyze' "$FL" && ! grep -q '^fvm ' "$FL" && ok ".fvmrc + scripts/flutter.sh: gate uses the wrapper" || bad "wrapper" "rc=$RC $OUT $(cat "$FL")"
+: >"$FL"; printf '#!/usr/bin/env bash\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
+W=$(new_repo); mkdir -p "$W/packages/core" "$W/apps/web"
+printf 'name: ws\nenvironment:\n  sdk: ^3.6.0\nworkspace:\n  - packages/core\n  - apps/web\n' >"$W/pubspec.yaml"
+printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && ok "pub workspace: dart analyze runs in every member" || bad "workspace" "rc=$RC $OUT $(cat "$FL")"
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

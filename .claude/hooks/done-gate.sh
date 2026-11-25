@@ -9,6 +9,8 @@
 #   - When the ENVIRONMENT is down (Docker, wp-env, UNC paths), it does NOT
 #     block: it reports "NOT RUN" to the user instead of sending Claude off
 #     to repair containers.
+#   - Flutter/Dart: `.fvmrc` → `scripts/flutter.sh` if present, else `fvm
+#     flutter`/`fvm dart`; a pub workspace root analyzes each member package.
 #
 # Configuration (env vars, e.g. in .claude/settings.json "env"):
 #   DONE_GATE_MODE=manual   owner runs gates by hand (localhost-first projects)
@@ -128,6 +130,12 @@ run_gate() { # $1 = label, rest = command
 has_npm_script() { [ -f package.json ] && grep -q "\"$1\"[[:space:]]*:" package.json; }
 has_composer_script() { [ -f composer.json ] && grep -q "\"$1\"[[:space:]]*:" composer.json; }
 full() { [ "${DONE_GATE_FULL:-0}" = "1" ]; }
+in_dir() { local d=$1; shift; (cd "$d" && "$@"); }
+# Members listed under `workspace:` in pubspec.yaml (block list form).
+workspace_members() {
+  awk '/^workspace:/ {w=1; next} w && /^[^[:space:]#]/ {w=0}
+       w && /^[[:space:]]*-/ {sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["\047]/, ""); print}' pubspec.yaml
+}
 
 if [ -n "${DONE_GATE_CMD:-}" ]; then
   run_gate "custom" bash -c "$DONE_GATE_CMD"
@@ -139,11 +147,24 @@ elif [ -f composer.json ] && command -v composer >/dev/null 2>&1; then
   has_composer_script lint && run_gate "lint" composer run-script lint
   full && has_composer_script test && run_gate "tests" composer run-script test
 elif [ -f pubspec.yaml ]; then
-  if command -v flutter >/dev/null 2>&1; then
-    run_gate "analyze" flutter analyze --no-pub
-    full && run_gate "tests" flutter test
-  elif command -v dart >/dev/null 2>&1; then
-    run_gate "analyze" dart analyze
+  # FVM-pinned projects must not run the global SDK; a project wrapper wins.
+  FLUTTER=""; DART=""
+  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then FLUTTER="bash scripts/flutter.sh"
+  elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER="fvm flutter"; DART="fvm dart"
+  elif command -v flutter >/dev/null 2>&1; then FLUTTER="flutter"
+  fi
+  [ -z "$DART" ] && command -v dart >/dev/null 2>&1 && DART="dart"
+  MEMBERS=$(workspace_members)
+  if [ -n "$MEMBERS" ] && [ -n "$DART" ]; then
+    # A pub workspace root analyzes nothing useful on its own: run each member.
+    for m in $MEMBERS; do
+      [ -d "$m" ] && run_gate "analyze ${m//\//-}" in_dir "$m" $DART analyze
+    done
+  elif [ -n "$FLUTTER" ]; then
+    run_gate "analyze" $FLUTTER analyze --no-pub
+    full && run_gate "tests" $FLUTTER test
+  elif [ -n "$DART" ]; then
+    run_gate "analyze" $DART analyze
   fi
 fi
 
