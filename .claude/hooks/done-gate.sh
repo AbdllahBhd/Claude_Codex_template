@@ -15,7 +15,10 @@
 #   DONE_GATE_CMD="..."     one custom gate command (any stack: pytest, ruff...)
 #   DONE_GATE_FULL=1        also run the test suite on this stop
 #   DONE_GATE_ENV_PROBE=".." command that exits 0 when the environment is UP
-#                           (default: docker answers and has running containers)
+#                           (default: docker answers and has running containers),
+#                           e.g. "curl -fsS -o /dev/null http://localhost:8896"
+#   DONE_GATE_ENV_PORT=8896 environment is UP only if a running container
+#                           publishes this host port (several sites, one Docker)
 #   SKIP_DONE_GATE=1        disable entirely
 #
 # Loop protection: stop_hook_active=true means we already blocked once.
@@ -78,17 +81,23 @@ RAN=""
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
 # counts as environment-down only if (a) it matches, (b) the log shows no code
 # error markers, and (c) the environment probe confirms it is down.
-ENV_DOWN='Cannot connect to the Docker daemon|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
+ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
 # Markers of real code findings (tsc, eslint, phpcs, phpunit, dart, pytest...).
 CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^(error|ERROR) [•-] '
 
 # Is the environment UP? Default: Docker answers and has running containers.
-# Override with DONE_GATE_ENV_PROBE="<command>" (exit 0 = environment up).
+# DONE_GATE_ENV_PORT narrows it to this project's container; DONE_GATE_ENV_PROBE
+# replaces the check entirely (exit 0 = environment up).
 env_up() {
   if [ -n "${DONE_GATE_ENV_PROBE:-}" ]; then bash -c "$DONE_GATE_ENV_PROBE" >/dev/null 2>&1; return; fi
   command -v docker >/dev/null 2>&1 || return 1
   # A half-broken Docker Desktop can hang its pipe: never wait more than 10s.
   local t=""; command -v timeout >/dev/null 2>&1 && t="timeout 10"
+  if [ -n "${DONE_GATE_ENV_PORT:-}" ]; then
+    # No pipe into grep -q: under pipefail its early exit SIGPIPEs docker.
+    local ports; ports=$($t docker ps --format '{{.Ports}}' 2>/dev/null) || return 1
+    [[ $ports == *":$DONE_GATE_ENV_PORT->"* ]]; return
+  fi
   $t docker info >/dev/null 2>&1 || return 1
   [ -n "$($t docker ps -q 2>/dev/null)" ]
 }

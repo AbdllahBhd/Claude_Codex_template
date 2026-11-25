@@ -343,7 +343,11 @@ Plain scripts — not AI — that fire on events:
   says **NOT RUN** instead of blocking when Docker/wp-env is down. Detects npm,
   composer and Flutter/Dart; any other stack sets `DONE_GATE_CMD`. Settings
   (in `.claude/settings.json` → `env`): `DONE_GATE_MODE=manual` for
-  localhost-first projects, `SKIP_DONE_GATE=1` to pause it.
+  localhost-first projects, `SKIP_DONE_GATE=1` to pause it. When Docker is
+  down it reports "NOT RUN" instead of blocking; on a machine running several
+  sites in one Docker, set `DONE_GATE_ENV_PORT=8896` (this project's published
+  port) or a custom probe such as
+  `DONE_GATE_ENV_PROBE="curl -fsS -o /dev/null http://localhost:8896"`.
   The NOT RUN notice is shown to you, not to the AI — read it.
 - **session-guard.sh** runs on every prompt: when the branch changed, the
   context passed ~150k tokens (`CONTEXT_WARN_TOKENS`, then every

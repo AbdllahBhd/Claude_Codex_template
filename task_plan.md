@@ -16,7 +16,7 @@
 - [x] **T1 — done-gate notices survive any message (bug U1).** `user_note` (done-gate.sh:36-39) escapes only `\` and `"`; also escape `\r`, `\n`, `\t` and strip other control chars, backslash first. Record in the Verification log which case is skipped on Linux.
   Done when: (1) new cases: a failing gate whose log tail has newlines/tabs AND a literal `\n` yields a `systemMessage` line that `python3 -c 'import json,sys; json.loads(sys.stdin.read())'` accepts (SKIP printed if no python3) — red before, green after; (2) full suite green; (3) no files changed outside `done-gate.sh`, `scripts/test-hooks.sh`, `task_plan.md`.
 
-- [ ] **T2 — environment probe fits multi-site machines (bug U2).** ENV_DOWN gains `spawn docker ENOENT` and `could not be found in this WSL`. New `DONE_GATE_ENV_PORT`: env up = `ports=$(timeout 10 docker ps --format '{{.Ports}}')` then `[[ $ports == *":$PORT->"* ]]` (no pipe into `grep -q`: SIGPIPE under pipefail, per StoreCore). Document `DONE_GATE_ENV_PROBE`/`_PORT` in the hook header and README hooks section (Allaghen curl example).
+- [x] **T2 — environment probe fits multi-site machines (bug U2).** ENV_DOWN gains `spawn docker ENOENT` and `could not be found in this WSL`. New `DONE_GATE_ENV_PORT`: env up = `ports=$(timeout 10 docker ps --format '{{.Ports}}')` then `[[ $ports == *":$PORT->"* ]]` (no pipe into `grep -q`: SIGPIPE under pipefail, per StoreCore). Document `DONE_GATE_ENV_PROBE`/`_PORT` in the hook header and README hooks section (Allaghen curl example).
   Done when: (1) cases with a fake `docker` on PATH: own port published + lint error → blocks (exit 2); only another port published + env-down log → NOT RUN (exit 0); `spawn docker ENOENT` log with docker absent → NOT RUN; (2) suite green; (3) fence: `done-gate.sh`, `scripts/test-hooks.sh`, `README.md`, `task_plan.md`.
 
 - [ ] **T3 — File ownership is explicit; local customisation has its own files.**
@@ -66,7 +66,8 @@
 | Suite | Commit | Result |
 |---|---|---|
 | scripts/test-hooks.sh (Linux) | eebc4f8 | 50 passed, 0 failed (baseline) |
-| T1 notice JSON case: red (detail missing) → green | T1 | 51 passed, 0 failed. Linux-skipped case = repo-guard "escaped Windows path" (Git Bash `pwd -W` only) → Windows 51 vs Linux 50 |
+| T1 notice JSON case: red (detail missing) → green | 51050b9 | 51 passed, 0 failed. Linux-skipped case = repo-guard "escaped Windows path" (Git Bash `pwd -W` only) → Windows 51 vs Linux 50 |
+| T2 env-port/ENOENT/WSL cases: 3 red → green (port-published case passed before: real docker up) | T2 | 55 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## Risks & open questions

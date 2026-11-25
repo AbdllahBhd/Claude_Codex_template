@@ -82,6 +82,22 @@ if ! command -v python3 >/dev/null 2>&1; then echo "  SKIP notice JSON check (no
 elif [ $RC -eq 0 ] && printf '%s' "$SM" | python3 -c 'import json,sys; m=json.loads(sys.stdin.read())["systemMessage"]; assert "literal \\n end" in m and "\tcol" in m, m'; then
   ok "NOT RUN notice with newlines/tabs/literal \\n is valid JSON"
 else bad "notice JSON" "rc=$RC $OUT"; fi
+FB=$(mktemp -d)   # fake docker: `ps` prints $FAKE_PORTS
+printf '#!/usr/bin/env bash\n[ "$1" = ps ] && printf "%%s\\n" "$FAKE_PORTS"; exit 0\n' >"$FB/docker"; chmod +x "$FB/docker"
+DOWN="echo 'Cannot connect to the Docker daemon at unix:///var/run/docker.sock'; exit 1"
+echo "c4" >>"$R/file.txt"
+OUT=$(gate env PATH="$FB:$PATH" FAKE_PORTS="0.0.0.0:8896->80/tcp, :::8896->80/tcp" DONE_GATE_ENV_PORT=8896 DONE_GATE_CMD="$DOWN"); RC=$?
+[ $RC -eq 2 ] && ok "ENV_PORT published -> env up -> blocks" || bad "env port up" "rc=$RC $OUT"
+OUT=$(gate env PATH="$FB:$PATH" FAKE_PORTS="0.0.0.0:8890->80/tcp" DONE_GATE_ENV_PORT=8896 DONE_GATE_CMD="$DOWN"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "only another site's port published -> NOT RUN" || bad "env port other" "rc=$RC $OUT"
+ND=$(mktemp -d)   # PATH with every tool the gate needs, but no docker
+for b in bash git grep tail cat tr mktemp rm mkdir xargs timeout env sed head wc printf; do
+  p=$(command -v "$b") && [ "${p#/}" != "$p" ] && ln -s "$p" "$ND/$b"
+done
+OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo 'Error: spawn docker ENOENT'; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "spawn docker ENOENT, docker absent -> NOT RUN" || bad "ENOENT" "rc=$RC $OUT"
+OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo \"The command 'docker' could not be found in this WSL 2 distro.\"; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "docker missing in WSL -> NOT RUN" || bad "WSL docker" "rc=$RC $OUT"
 OUT=$(gate env DONE_GATE_MODE=manual DONE_GATE_CMD="exit 1"); RC=$?
 [ $RC -eq 0 ] && ok "manual mode never blocks" || bad "manual" "rc=$RC"
 OUT=$(cd "$R" && echo '{"stop_hook_active":true}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
