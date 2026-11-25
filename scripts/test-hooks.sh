@@ -248,6 +248,12 @@ else
   OUT=$(st --apply); RC=$?
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert "Bash(cat)" not in d["permissions"]["allow"], d' "$P/.claude/settings.json" \
     && [ "$(cat "$P/.claude/hooks/h.sh")" = "echo v3" ] && ok "--apply keeps an allow rule the project removed out" || bad "removed allow re-added" "rc=$RC $OUT $(cat "$P/.claude/settings.json")"
+  git -C "$P" add -A && git -C "$P" commit -qm three
+  X=$(mktemp -d); echo 'echo v3' >"$X/out.sh"; ln -sf "$X/out.sh" "$P/.claude/hooks/h.sh"
+  echo 'echo v4' >"$T/.claude/hooks/h.sh"; echo 'café' >"$T/.claude/rules/café.md"; git -C "$T" add -A && git -C "$T" commit -qm four
+  OUT=$(st --apply); RC=$?
+  [ "$(cat "$T/.claude/rules/café.md")" = "$(cat "$P/.claude/rules/café.md" 2>/dev/null)" ] && ok "--apply handles non-ASCII paths" || bad "non-ASCII path" "rc=$RC $OUT"
+  [ "$(cat "$X/out.sh")" = "echo v3" ] && has "$OUT" "symlink" && ok "--apply never writes through a symlink" || bad "symlink write" "rc=$RC $OUT $(cat "$X/out.sh")"
 fi
 
 echo "== v3 /next command"

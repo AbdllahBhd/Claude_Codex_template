@@ -70,26 +70,37 @@ known_version() { # $1 = path, $2 = project blob
   return 1
 }
 
-NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SETTINGS=""
-while IFS= read -r path; do
+# A symlinked path (or parent) may point outside the project: never write through it.
+through_symlink() { # $1 = path
+  local p=$1
+  while [ "$p" != . ] && [ "$p" != / ]; do [ -L "$p" ] && return 0; p=$(dirname "$p"); done
+  return 1
+}
+
+# -z everywhere: core.quotePath would otherwise quote non-ASCII names.
+NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); SETTINGS=""
+while IFS= read -r -d '' path; do
   case "$(owner_of "$path")" in
     template) ;;
-    merged) [ "$path" = .claude/settings.json ] && SETTINGS=1; continue ;;
+    merged) [ "$path" = .claude/settings.json ] || continue
+            if through_symlink "$path"; then SYMLINKED+=("$path"); else SETTINGS=1; fi
+            continue ;;
     *) continue ;;
   esac
+  if through_symlink "$path"; then SYMLINKED+=("$path"); continue; fi
   if [ ! -e "$path" ]; then NEW+=("$path"); continue; fi
   tblob=$(git -C "$TPL" rev-parse "$COMMIT:$path")
   pblob=$(git hash-object -- "$path")
   [ "$tblob" = "$pblob" ] && continue
   if known_version "$path" "$pblob"; then UPDATED+=("$path"); else MODIFIED+=("$path"); fi
-done < <(git -C "$TPL" ls-tree -r --name-only "$COMMIT")
+done < <(git -C "$TPL" ls-tree -r -z --name-only "$COMMIT")
 
 # Template-owned project files the template no longer ships (but once did).
-while IFS= read -r path; do
+while IFS= read -r -d '' path; do
   [ "$(owner_of "$path")" = template ] || continue
   git -C "$TPL" cat-file -e "$COMMIT:$path" 2>/dev/null && continue
   [ -n "$(git -C "$TPL" log -1 --format=%H "$COMMIT" -- "$path")" ] && REMOVED+=("$path")
-done < <(git ls-files)
+done < <(git ls-files -z)
 
 # settings.json, per hook event and permission list: template entries, minus
 # those the project removed since the last sync, plus the project's own.
@@ -168,6 +179,7 @@ if [ -n "$SETTINGS_CHANGED" ]; then
   [ -f .claude/settings.json ] && diff -u --label "project/.claude/settings.json" --label "merged" \
     .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
 fi
+for p in "${SYMLINKED[@]}"; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
 for p in "${REMOVED[@]}"; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
 for p in "${MODIFIED[@]}"; do
   echo "locally modified  $p  (kept — move your change into .claude/rules/local-*.md or .claude/hooks/local/)"
