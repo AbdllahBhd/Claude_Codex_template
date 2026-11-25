@@ -13,6 +13,7 @@ Also read the convention files it references:
 - [.claude/rules/workflow.md](.claude/rules/workflow.md)
 - [.claude/rules/delivery.md](.claude/rules/delivery.md)
 - [.claude/rules/reporting.md](.claude/rules/reporting.md)
+- every `.claude/rules/local-*.md` (project-specific rules; read them all)
 
 On-demand knowledge and workflows are available to you natively as skills in
 `.agents/skills/` — list that folder to see what exists (project skills,

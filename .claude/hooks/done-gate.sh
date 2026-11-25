@@ -20,6 +20,8 @@
 #   DONE_GATE_ENV_PORT=8896 environment is UP only if a running container
 #                           publishes this host port (several sites, one Docker)
 #   SKIP_DONE_GATE=1        disable entirely
+# Project-specific extra gates: .claude/hooks/local/*.sh (each one runs; a
+# non-zero exit blocks like any other gate).
 #
 # Loop protection: stop_hook_active=true means we already blocked once.
 
@@ -144,6 +146,11 @@ elif [ -f pubspec.yaml ]; then
     run_gate "analyze" dart analyze
   fi
 fi
+
+# Project-owned extra gates (template sync never touches .claude/hooks/local/).
+for f in .claude/hooks/local/*.sh; do
+  [ -f "$f" ] && run_gate "local-$(basename "$f" .sh)" bash "$f"
+done
 
 [ -z "$RAN" ] && exit 0   # no gate defined for this stack
 

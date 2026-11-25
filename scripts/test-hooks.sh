@@ -98,6 +98,13 @@ OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo 'Error: spawn docker ENOENT'; exit
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "spawn docker ENOENT, docker absent -> NOT RUN" || bad "ENOENT" "rc=$RC $OUT"
 OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo \"The command 'docker' could not be found in this WSL 2 distro.\"; exit 1"); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "docker missing in WSL -> NOT RUN" || bad "WSL docker" "rc=$RC $OUT"
+mkdir -p "$R/.claude/hooks/local"
+printf 'echo "local/extra.sh:1 error: project rule broken"; exit 1\n' >"$R/.claude/hooks/local/extra.sh"
+OUT=$(gate env DONE_GATE_CMD="exit 0"); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "project rule broken" && ok "failing .claude/hooks/local/*.sh blocks" || bad "local gate fail" "rc=$RC $OUT"
+printf 'exit 0\n' >"$R/.claude/hooks/local/extra.sh"
+OUT=$(gate env DONE_GATE_CMD="exit 0"); RC=$?
+[ $RC -eq 0 ] && ok "passing local gate lets the stop through" || bad "local gate pass" "rc=$RC $OUT"
 OUT=$(gate env DONE_GATE_MODE=manual DONE_GATE_CMD="exit 1"); RC=$?
 [ $RC -eq 0 ] && ok "manual mode never blocks" || bad "manual" "rc=$RC"
 OUT=$(cd "$R" && echo '{"stop_hook_active":true}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
@@ -163,6 +170,20 @@ OUT=$(printf '{"session_id":"s-win","tool_input":{"file_path":"%s"}}' 'D:\\proj\
 has "$OUT" testing-patterns && ok "JSON-escaped Windows path parsed (nudges)" || bad "win path" "$OUT"
 OUT=$(sn "$R/src/App.tsx"); [ -z "$OUT" ] && ok "skill not shipped: silent" || bad "missing skill" "$OUT"
 OUT=$(sn "$R/README.md"); [ -z "$OUT" ] && ok "other file: silent" || bad "other file" "$OUT"
+
+echo "== v3 file ownership"
+# Every tracked path must have an owner in docs/template-files.md (first match
+# wins); sync-template.sh relies on it to know what it may overwrite.
+TF="$TEMPLATE/docs/template-files.md"
+if [ -f "$TF" ]; then
+  GLOBS=$(sed -n 's/^| `\([^`]*\)` | \(template\|project\|merged\) |.*/\1/p' "$TF")
+  UNLISTED=""
+  while IFS= read -r f; do
+    hit=""; while IFS= read -r g; do [[ $f == $g ]] && { hit=1; break; }; done <<<"$GLOBS"
+    [ -z "$hit" ] && UNLISTED="$UNLISTED $f"
+  done < <(git -C "$TEMPLATE" ls-files)
+  [ -z "$UNLISTED" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$UNLISTED"
+else bad "docs/template-files.md exists"; fi
 
 echo
 echo "passed: $PASS  failed: $FAIL"

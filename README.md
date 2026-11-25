@@ -274,8 +274,11 @@ overrides win on your machine.
 One topic per file. Keep each file to rules a good engineer would NOT already
 follow by default — research shows restating the obvious adds cost without
 improving results. Topic knowledge that's only sometimes relevant (like API
-conventions here) belongs in `skills/` instead. Add new rule files freely and
-reference them from CLAUDE.md with `@.claude/rules/your-file.md`.
+conventions here) belongs in `skills/` instead. Claude Code loads every `.md`
+under `.claude/rules/` automatically. Put **project** rules in
+`.claude/rules/local-<topic>.md` (copy `local-example.md`): template updates
+never overwrite `local-*` files, while the other rule files belong to the
+template. Who owns which file: [`docs/template-files.md`](docs/template-files.md).
 
 ### `.claude/commands/*.md` — your shortcuts *(run only when YOU type them)*
 Each `.md` file becomes a `/command` named after the file. Inside the file,
@@ -348,6 +351,8 @@ Plain scripts — not AI — that fire on events:
   sites in one Docker, set `DONE_GATE_ENV_PORT=8896` (this project's published
   port) or a custom probe such as
   `DONE_GATE_ENV_PROBE="curl -fsS -o /dev/null http://localhost:8896"`.
+  Extra project gates go in `.claude/hooks/local/*.sh` (each runs after the
+  stack's gates; non-zero exit blocks) — never edit `done-gate.sh` itself.
   The NOT RUN notice is shown to you, not to the AI — read it.
 - **session-guard.sh** runs on every prompt: when the branch changed, the
   context passed ~150k tokens (`CONTEXT_WARN_TOKENS`, then every

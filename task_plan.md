@@ -19,7 +19,7 @@
 - [x] **T2 — environment probe fits multi-site machines (bug U2).** ENV_DOWN gains `spawn docker ENOENT` and `could not be found in this WSL`. New `DONE_GATE_ENV_PORT`: env up = `ports=$(timeout 10 docker ps --format '{{.Ports}}')` then `[[ $ports == *":$PORT->"* ]]` (no pipe into `grep -q`: SIGPIPE under pipefail, per StoreCore). Document `DONE_GATE_ENV_PROBE`/`_PORT` in the hook header and README hooks section (Allaghen curl example).
   Done when: (1) cases with a fake `docker` on PATH: own port published + lint error → blocks (exit 2); only another port published + env-down log → NOT RUN (exit 0); `spawn docker ENOENT` log with docker absent → NOT RUN; (2) suite green; (3) fence: `done-gate.sh`, `scripts/test-hooks.sh`, `README.md`, `task_plan.md`.
 
-- [ ] **T3 — File ownership is explicit; local customisation has its own files.**
+- [x] **T3 — File ownership is explicit; local customisation has its own files.**
   - `docs/template-files.md`: machine-readable table, one path or glob per line with owner `template` / `project` / `merged` (`.claude/settings.json` = merged: template owns `hooks` + `permissions`, project owns `env`; CLAUDE.md, `.mcp.json`, `task_plan.md`, `SPEC.md` = project; AGENTS.md and `.codex/config.toml` = template).
   - Project additions live in `.claude/rules/local-*.md` (+ `local-example.md` shipped as the format). First verify in the Claude Code memory docs whether `.claude/rules/*.md` auto-loads; if not, CLAUDE.md's template section gets one `@.claude/rules/local.md` index line (an `@` import doesn't glob). AGENTS.md gets "also read every `.claude/rules/local-*.md`" for Codex.
   - Hook behaviour is configured only via settings `env` (`DONE_GATE_CMD`, `DONE_GATE_MODE`, `DONE_GATE_ENV_*`, `CONTEXT_WARN_TOKENS`) plus `.claude/hooks/local/*.sh`, which done-gate runs as extra gates.
@@ -67,12 +67,14 @@
 |---|---|---|
 | scripts/test-hooks.sh (Linux) | eebc4f8 | 50 passed, 0 failed (baseline) |
 | T1 notice JSON case: red (detail missing) → green | 51050b9 | 51 passed, 0 failed. Linux-skipped case = repo-guard "escaped Windows path" (Git Bash `pwd -W` only) → Windows 51 vs Linux 50 |
-| T2 env-port/ENOENT/WSL cases: 3 red → green (port-published case passed before: real docker up) | T2 | 55 passed, 0 failed |
+| T2 env-port/ENOENT/WSL cases: 3 red → green (port-published case passed before: real docker up) | cc792b6 | 55 passed, 0 failed |
+| T3 local-gate + ownership cases: 2 red → green; negative check (CATALOG row removed → "unlisted paths CATALOG.md") | T3 | 58 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## Risks & open questions
 - **Release branch (owner decision):** `main` is 12 commits behind `develop`. T4/T5 default `--ref`/`TEMPLATE_REF` to whichever branch the owner names; recommend merging `develop` → `main` after T15 and syncing from `main`.
 - **T3/T6/T8 depend on documented behaviour** (rules auto-loading, compaction/model settings, subagent field in hook input). Each task records the doc URL and has a stated fallback; no undocumented keys.
+- **T3 finding (rules loading):** https://code.claude.com/docs/en/memory — "Rules without `paths` frontmatter are loaded at launch with the same priority as `.claude/CLAUDE.md`", discovered recursively. So `local-*.md` needs no `@` index line; CLAUDE.md only gets a pointer sentence.
 - **T4 merges settings.json with python3**; on machines without it, the sync prints a diff and stops for that file.
 - **T10 live smoke loads the machine** (emulator + NVMe); optional, needs the owner's go-ahead at that step.
 - **Disk mounted at three paths** (`/media/abdellah/disque-D`, `/run/media/…`, `/mnt/disque-d`): Claude history and memory split per path. Owner fix (fstab), not template code; T14 merges the variants when reporting.
