@@ -212,6 +212,11 @@ the touched feature.
 - **Brief build subagents tightly:** the files to touch, the interfaces to
   keep, what done looks like, and a "read only what you need" line. Open-ended
   build agents ran to 15–64M tokens each in audited projects.
+- **Fan-out cap:** at most 4–6 parallel subagents per wave; wait for the wave
+  before starting the next. Implementer subagents report back after ~60 turns
+  (what is done, what is left) instead of running open-ended — the caller then
+  decides to continue, re-brief or split. `hooks/delegate-guard.sh` warns once
+  per session on a subagent call with no model (`DELEGATE_GUARD=strict` denies).
 - **Screenshots stay out of the main thread.** Visual checks run in a
   subagent that returns text ("button clipped at 375px"); never re-read the
   same image. Each image is re-paid on every later message.
@@ -229,6 +234,15 @@ the touched feature.
 - About to claim done → `verification-before-completion`
 (`hooks/skill-nudge.sh` reminds once per session when test/UI files are edited.)
 
+## Data safety
+
+- No unscoped migration push (`supabase db push`, `prisma migrate deploy`,
+  `wp db import`…) without naming the target project/env explicitly: the
+  default target is whatever was linked last.
+- Test records on shared/staging data carry a `test_label`; a rerun resumes
+  the labelled test records, never reseeds (reseeding duplicates or wipes
+  what the owner is checking).
+
 ## Windows / WSL projects
 
 - A project that lives in WSL is opened FROM WSL (Claude Code running in
@@ -236,6 +250,11 @@ the touched feature.
   npm/CMD and gates, and `wsl.exe` wrappers churn retries.
 - In Git Bash, prefix commands that take Linux paths with
   `MSYS_NO_PATHCONV=1` (e.g. docker/wp-env paths).
+- `pgrep -f` / `pkill -f` match their own command line (and the shell that
+  runs them): `pkill -f "node server"` from `bash -c` can kill that shell.
+  Prefer a PID file or the tool's own stop command.
+- Never edit a running shell script: bash reads scripts incrementally, so the
+  running process executes the new bytes mid-file. Copy, edit, then swap.
 - Shell scripts keep LF endings (`.gitattributes` enforces it).
 
 ## Adversarial review

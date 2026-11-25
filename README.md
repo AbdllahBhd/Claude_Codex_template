@@ -13,6 +13,36 @@ you're curious, not before starting.
 
 ---
 
+## What's new in v3 (2026-11)
+
+From an audit of 10 projects' sessions (cost was mostly long contexts,
+model-less subagents and browser work in the main thread):
+
+- **Updates reach projects:** `scripts/sync-template.sh <template-dir>` (dry run;
+  `--apply` to write) updates template-owned files, keeps your edits and your
+  settings `env`, and stamps `.claude/template-version`. `docs/template-files.md`
+  says who owns what; project rules go in `.claude/rules/local-*.md`, extra
+  gates in `.claude/hooks/local/*.sh`. Set `TEMPLATE_DIR` in
+  `.claude/settings.local.json` `env` and session-guard tells you when the
+  template is newer.
+- **Cost caps:** auto-compaction at 300k tokens (`autoCompactWindow`); the
+  context warning now makes the AI finish its step and write a handoff;
+  `/next` hands the next task to a fresh session; `delegate-guard` warns on
+  subagents with no model and on browser work in the main thread.
+- **Device testing:** `scripts/android-emu.sh` and `scripts/android-ui.sh`
+  (tested helpers, no blind sleeps); browser/device checklists in
+  `testing-patterns`; `.claude/launch.json.example`.
+- **Fixes:** done-gate notices survive any log text, multi-site Docker probe
+  (`DONE_GATE_ENV_PORT`), FVM-pinned Flutter and pub workspaces.
+- **Measure it:** `python3 scripts/usage-report.py`.
+
+**Updating a project made from v2:** run the template's copy once —
+`bash <template>/scripts/sync-template.sh <template>` — read the dry run, move
+any "locally modified" rule into `.claude/rules/local-*.md`, then rerun with
+`--apply` and commit. Section 13 has the details.
+
+---
+
 ## 1. Why would I use this?
 
 Think about how you work with AI today, without it:
@@ -274,8 +304,11 @@ overrides win on your machine.
 One topic per file. Keep each file to rules a good engineer would NOT already
 follow by default — research shows restating the obvious adds cost without
 improving results. Topic knowledge that's only sometimes relevant (like API
-conventions here) belongs in `skills/` instead. Add new rule files freely and
-reference them from CLAUDE.md with `@.claude/rules/your-file.md`.
+conventions here) belongs in `skills/` instead. Claude Code loads every `.md`
+under `.claude/rules/` automatically. Put **project** rules in
+`.claude/rules/local-<topic>.md` (copy `local-example.md`): template updates
+never overwrite `local-*` files, while the other rule files belong to the
+template. Who owns which file: [`docs/template-files.md`](docs/template-files.md).
 
 ### `.claude/commands/*.md` — your shortcuts *(run only when YOU type them)*
 Each `.md` file becomes a `/command` named after the file. Inside the file,
@@ -343,7 +376,13 @@ Plain scripts — not AI — that fire on events:
   says **NOT RUN** instead of blocking when Docker/wp-env is down. Detects npm,
   composer and Flutter/Dart; any other stack sets `DONE_GATE_CMD`. Settings
   (in `.claude/settings.json` → `env`): `DONE_GATE_MODE=manual` for
-  localhost-first projects, `SKIP_DONE_GATE=1` to pause it.
+  localhost-first projects, `SKIP_DONE_GATE=1` to pause it. When Docker is
+  down it reports "NOT RUN" instead of blocking; on a machine running several
+  sites in one Docker, set `DONE_GATE_ENV_PORT=8896` (this project's published
+  port) or a custom probe such as
+  `DONE_GATE_ENV_PROBE="curl -fsS -o /dev/null http://localhost:8896"`.
+  Extra project gates go in `.claude/hooks/local/*.sh` (each runs after the
+  stack's gates; non-zero exit blocks) — never edit `done-gate.sh` itself.
   The NOT RUN notice is shown to you, not to the AI — read it.
 - **session-guard.sh** runs on every prompt: when the branch changed, the
   context passed ~150k tokens (`CONTEXT_WARN_TOKENS`, then every
@@ -356,6 +395,11 @@ Plain scripts — not AI — that fire on events:
   another folder/repo (that work belongs in its own session).
 - **skill-nudge.sh** runs after edits: once per session, reminds the AI to
   load `testing-patterns` / `ui-quality` when it edits test or UI files.
+- **delegate-guard.sh** runs before subagent and browser calls: once per
+  session, warns when a subagent call names no model (it would inherit the most
+  expensive one) and when the main thread drives the browser (move it to a
+  `sonnet` subagent). Settings `env`: `DELEGATE_GUARD=strict` blocks model-less
+  subagent calls, `=off` silences it. Agents whose file sets `model:` are exempt.
 - All hooks are called through `$CLAUDE_PROJECT_DIR`, so they work from any
   subfolder; `bash scripts/test-hooks.sh` checks them all.
 How blocking works: a hook that exits with code 2 feeds its message back to the
@@ -398,6 +442,7 @@ in the template                in CLAUDE CODE             in CODEX
 .claude/commands/retro.md  →   /retro                     $retro
 .claude/commands/deploy.md →   /deploy                    $deploy
 .claude/commands/install.md →  /install                   $install
+.claude/commands/next.md   →   /next                      $next
 ```
 
 Four facts, that's all there is to it:
@@ -414,7 +459,7 @@ Four facts, that's all there is to it:
    runs retro focused on testing.
 
 Don't confuse them with **built-in commands** (`/clear`, `/cost`, `/init`...):
-those ship with the tools and exist everywhere. The three above exist only in
+those ship with the tools and exist everywhere. The commands above exist only in
 projects that carry this template — because the files do.
 
 ### The template's commands
@@ -424,6 +469,7 @@ projects that carry this template — because the files do.
 | `/retro` | `$retro` | Writes this session's lessons into the rule files | `/retro` · `/retro testing` (focus on one topic) |
 | `/install` | `$install` | Shows/installs optional tools from CATALOG.md | `/install` (menu) · `/install context7` · partial names work |
 | `/deploy` | `$deploy` | Checklist: clean tree → lint → tests → build, then deploy | `/deploy` (staging) · `/deploy production` (asks confirmation) |
+| `/next` | `$next` | Picks the ONE next task, writes `docs/handoff.md`, branches on your yes, then tells you to open a fresh session — never starts the work | `/next` · `/next bugs first` |
 
 **Built into Claude Code** (every project, no template needed) — the ones worth
 knowing: `/code-review` (the serious bug hunt), `/init` (generate CLAUDE.md —
@@ -527,8 +573,34 @@ that solves it — 30 seconds, always the current version, and the template stay
 tiny. The catalog also marks which memory tools are shared across both AIs (🔁)
 versus locked to one tool (🔒).
 
+### Android device scripts (Flutter / React Native / native apps)
+
+Ready-made, tested helpers, so sessions stop rewriting boot loops:
+
+```
+bash scripts/android-emu.sh up       # boot $AVD, wait until really booted (no blind sleep)
+bash scripts/android-emu.sh status   # devices, boot state, free RAM, heaviest processes
+bash scripts/android-emu.sh down     # stop the emulator + Gradle daemon (do it at task end)
+bash scripts/android-ui.sh wait-for "Save" 30   # poll the UI dump (no sleep); names an ANR dialog
+bash scripts/android-ui.sh tap "Save"           # tap by text or content-desc, not coordinates
+bash scripts/android-ui.sh shot out.png         # screenshot, only to prove layout
+bash scripts/android-ui.sh dump                 # also: type "text" · key 66 · back · swipe
+```
+
+`up` warns when `/data` is nearly full (installs fail) and says how to wipe it.
+Settings: `AVD`, `ADB_SERIAL`, `EMU_HEADLESS=1`, `EMU_BOOT_TIMEOUT` (default 240 s).
+Read-only adb commands (`devices`, `getprop`, `uiautomator dump`, `screencap`)
+are pre-allowed in `settings.json`. For browser previews, copy
+`.claude/launch.json.example` to `.claude/launch.json` and keep the entries you
+use. The `testing-patterns` skill holds the browser and device checklists.
+
 ## 13. Growing and maintaining it
 
+- **See what sessions cost:** `python3 scripts/usage-report.py [--project .]
+  [--since 2026-11-01] [--until 2026-11-25] [--json]` — read-only; per project
+  and model $ (list-price estimate), context peaks, sessions past 150k/400k,
+  subagent share, Agent calls with no model, main-thread browser calls/images.
+  Update the dated price table at the top of the script when prices change.
 - **New rule:** add a file under `.claude/rules/`, reference it from `CLAUDE.md`
   with `@.claude/rules/your-file.md` (or just let `/retro` do it).
 - **New command:** drop a `.md` file in `.claude/commands/` → instantly a
@@ -552,18 +624,30 @@ versus locked to one tool (🔒).
 - **Prune as often as you add.** A focused 30-line rule file beats a 300-line
   manifesto the AI has to wade through every session. `/doctor` proposes cuts;
   `/context` shows what's actually loading.
-- **Pull template updates into an existing project** (works even though you
-  deleted the template's `.git` when copying — the project's own repo just
-  re-links). One-time setup per project:
+- **Pull template updates into an existing project** with
+  `scripts/sync-template.sh` (needs a local clone of the template; python3 for
+  the settings merge). From the project root:
   ```bash
-  git remote add template <your-template-repo-url>
-  git fetch template
-  git merge template/main --allow-unrelated-histories -X ours
+  bash scripts/sync-template.sh ~/path/to/template --ref main
   ```
-  `-X ours` keeps YOUR version of every shared file (your CLAUDE.md, adapted
-  hooks...) and brings in only new template files — review, run the sync,
-  commit. Every later update is just `git fetch template && git merge
-  template/main`: a normal merge where only real line-level overlaps conflict.
+  That is a dry run: it lists **new**, **updated** (your copy equals an older
+  template version, so it is safe to replace), **locally modified** (your copy
+  matches no template version: kept, diff shown — move the change into
+  `.claude/rules/local-*.md` or `.claude/hooks/local/`) and **removed
+  upstream** (listed, never deleted). Add `--apply` to write the new and
+  updated files, merge `.claude/settings.json` (template hooks + permissions
+  arrive; your own hooks, allow rules and `env` are kept, and rules you
+  removed stay removed), re-run the Codex sync and record the template commit in
+  `.claude/template-version`. It never commits and never touches project-owned
+  files ([`docs/template-files.md`](docs/template-files.md)). Review
+  `git diff`, run the tests, commit. A project that predates v3 has no
+  `sync-template.sh` yet: run the template's copy
+  (`bash ~/path/to/template/scripts/sync-template.sh ~/path/to/template`).
+  To be told when a project falls behind, set `TEMPLATE_DIR` (your template
+  clone's path) in `.claude/settings.local.json` → `env` (machine-local, never
+  committed; `TEMPLATE_REF` defaults to `main`): on the first prompt of each
+  session, session-guard compares it with `.claude/template-version` (no
+  fetch — `git pull` the template clone yourself).
 
 **Committed (shared via git) vs. personal (git-ignored):**
 

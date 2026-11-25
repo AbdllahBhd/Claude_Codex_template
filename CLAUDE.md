@@ -44,6 +44,9 @@ Detailed conventions live in `.claude/rules/` and are loaded automatically:
 - @.claude/rules/delivery.md
 - @.claude/rules/reporting.md
 
+Project-specific rules go in `.claude/rules/local-*.md` (auto-loaded, never
+overwritten by `scripts/sync-template.sh`; ownership in `docs/template-files.md`).
+
 API conventions load on demand as a skill (`.claude/skills/api-conventions/`) —
 only sessions that touch an API pay for them.
 

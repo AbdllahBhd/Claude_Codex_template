@@ -30,15 +30,11 @@ Run this loop IN ORDER — never skip a step, never reorder:
    - Solo flow note: the step-2 adversarial review IS the required review
      (pr.md's "never merge without review" is satisfied by it). Teams that
      require human PR review use a PR to develop instead of a direct merge.
-5. **Propose the next task:** suggest it with one line of reasoning (from
-   task_plan.md, the roadmap, or open issues), and wait for the user's pick or
-   confirmation.
-6. **Start it cleanly — in a NEW session:** create the branch
-   `<type>/<short-description>` (naming per pr.md) from `develop`, make sure
-   `task_plan.md` holds everything the next task needs, then STOP and tell the
-   user to start a fresh session (or `/clear`) for it. Never continue the next
-   task in the current session: carrying finished work forward is the single
-   biggest cost in audited projects.
+5. **Propose the next task** and 6. **start it in a NEW session:** run `/next`
+   (`$next` in Codex) — it picks ONE task with its why, writes
+   `docs/handoff.md`, creates the branch from `develop` only on the user's yes,
+   and stops. Never continue the next task in the current session: carrying
+   finished work forward is the single biggest cost in audited projects.
 
 ## Multitask opportunities
 

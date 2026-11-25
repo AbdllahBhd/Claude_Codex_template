@@ -13,15 +13,21 @@ Also read the convention files it references:
 - [.claude/rules/workflow.md](.claude/rules/workflow.md)
 - [.claude/rules/delivery.md](.claude/rules/delivery.md)
 - [.claude/rules/reporting.md](.claude/rules/reporting.md)
+- every `.claude/rules/local-*.md` (project-specific rules; read them all)
 
 On-demand knowledge and workflows are available to you natively as skills in
 `.agents/skills/` — list that folder to see what exists (project skills,
-workflow commands like `$deploy`/`$install`/`$retro`, and the superpowers
+workflow commands like `$deploy`/`$install`/`$retro`/`$next`, and the superpowers
 discipline skills such as `$test-driven-development` and
 `$systematic-debugging`). These are generated copies of `.claude/skills/` and
 `.claude/commands/` — when updating a skill, edit the source under `.claude/`
 and run `bash scripts/sync-codex.sh` (Windows: `scripts\sync-codex.cmd`);
 never edit `.agents/skills/` directly.
+
+**Codex-only limits** (Claude Code enforces these with hooks Codex lacks):
+`spawn_agent` at most 4–6 parallel subagents per wave, each with a model chosen
+per workflow.md's model table; one task = one session — after a task, run
+`$next` and continue in a fresh session.
 
 **Where to save lessons and new rules:** when the user corrects you or states a
 rule, write it into the matching file — coding conventions →

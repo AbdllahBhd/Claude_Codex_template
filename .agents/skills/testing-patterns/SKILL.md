@@ -32,6 +32,10 @@ Commands) — they win over the defaults here.
 - `vi.useFakeTimers()` / `jest.useFakeTimers()` for anything date-based.
 - Targeted run: `npx vitest run path/to/file.test.ts` (or `npx jest path`).
 
+- Playwright e2e: a `globalSetup` seeds its own data (login state, fixtures),
+  so the suite runs on a fresh database; `workers: 1` when tests share that
+  database or one wp-env/backend.
+
 ```ts
 it("rejects orders with an empty cart", async () => {
   const cart = makeCart({ items: [] });
@@ -56,6 +60,10 @@ it("rejects orders with an empty cart", async () => {
   not that `add_action` was called.
 - Translations in tests: the suite may force `WP_LANG_DIR` — load the text
   domain explicitly when asserting translated strings.
+- Stopping wp-env from the host (Ctrl-C, killed shell) leaves
+  PHPUnit running in the container: check `docker ps` before a rerun.
+- While e2e runs, run no lint or wp-env command: they restart or lock the same
+  containers and fail the run halfway.
 - Lint is part of testing here: `composer lint` (PHPCS, WordPress standard).
 
 ## Flutter / Dart
@@ -66,11 +74,46 @@ it("rejects orders with an empty cart", async () => {
 - Time: `fakeAsync` / an injected clock.
 - Targeted run: `flutter test test/features/<feature>/`.
 
+- Destructive integration runs (reset, seed, truncate) refuse non-local DB
+  hosts: the test setup aborts unless the host is localhost/127.0.0.1/a docker
+  service name, so a staging `.env` can never be wiped.
+
 ## Python (pytest)
 
 - `tests/` mirrors the package; fixtures in `conftest.py`, kept small.
 - `freezegun` or an injected clock for time; `monkeypatch` at the boundary.
 - Targeted run: `pytest tests/path/test_x.py -q`.
+
+## Browser checks
+
+Run them in a `sonnet` subagent that returns text (workflow.md model table);
+the main thread never collects screenshots.
+- Take a screenshot after every navigate or resize and before any coordinate
+  click: coordinates from an older screenshot hit the wrong element. Prefer
+  `find` / `read_page` refs over coordinates, and page text over images.
+- Batch steps you can predict, ≤25 real actions per batch; re-screenshot
+  between batches.
+- Local pages: start them through `.claude/launch.json` (copy
+  `.claude/launch.json.example`; `python3 -m http.server` for static files),
+  never `file://` — paths with spaces break, and scripts/modules are blocked.
+- Canvas apps (Flutter web, games) have no DOM to read: verify through JS state
+  (`window.app…`) or the app's integration tests, not pixel hunting.
+- A "Leave site?" dialog blocks every later action: dismiss it first.
+- Codex `playwright-cli`: curl-retry the dev server until it answers before
+  `open` (`until curl -sf http://localhost:PORT >/dev/null; do sleep 1; done`).
+
+## Android/device checks
+
+- Use `scripts/android-emu.sh up|status|down` and `scripts/android-ui.sh`
+  (`wait-for`, `tap`, `dump`, `shot`) — never a hand-rolled boot loop or a
+  blind `sleep`.
+- Run `android-emu.sh status` first: an emulator, Gradle daemon or second
+  server already running halves the machine. One emulator and one dev server
+  per session, stopped (`android-emu.sh down`) at task end.
+- Read the `uiautomator dump` (`android-ui.sh dump` / `wait-for`) before taking
+  a screenshot; at most one screenshot per UI state, only to prove layout.
+- A flow you clicked through twice becomes a test:
+  `flutter test integration_test/<flow>_test.dart -d <device-id>`.
 
 ## Definition of done
 
