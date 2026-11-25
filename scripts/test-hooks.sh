@@ -75,6 +75,13 @@ OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo run >>'$C'; echo 'C
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "Docker down -> NOT RUN, no block" || bad "env down" "rc=$RC $OUT"
 OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo run >>'$C'; echo 'Error: service \"cli\" is not running'; exit 1"); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && [ "$(runs)" -eq $((B+2)) ] && ok "env-down run is not stamped (next stop re-runs)" || bad "env-down stamp" "rc=$RC runs=$(runs) $OUT"
+echo "c3" >>"$R/file.txt"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD='printf "Cannot connect to the Docker daemon at x\n\tdetail\tcol\r\nliteral \\\\n end\001\n"; exit 1'); RC=$?
+SM=$(printf '%s\n' "$OUT" | grep '"systemMessage"')
+if ! command -v python3 >/dev/null 2>&1; then echo "  SKIP notice JSON check (no python3)"
+elif [ $RC -eq 0 ] && printf '%s' "$SM" | python3 -c 'import json,sys; m=json.loads(sys.stdin.read())["systemMessage"]; assert "literal \\n end" in m and "\tcol" in m, m'; then
+  ok "NOT RUN notice with newlines/tabs/literal \\n is valid JSON"
+else bad "notice JSON" "rc=$RC $OUT"; fi
 OUT=$(gate env DONE_GATE_MODE=manual DONE_GATE_CMD="exit 1"); RC=$?
 [ $RC -eq 0 ] && ok "manual mode never blocks" || bad "manual" "rc=$RC"
 OUT=$(cd "$R" && echo '{"stop_hook_active":true}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?

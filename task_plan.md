@@ -13,7 +13,7 @@
 
 ## Tasks
 
-- [ ] **T1 — done-gate notices survive any message (bug U1).** `user_note` (done-gate.sh:36-39) escapes only `\` and `"`; also escape `\r`, `\n`, `\t` and strip other control chars, backslash first. Record in the Verification log which case is skipped on Linux.
+- [x] **T1 — done-gate notices survive any message (bug U1).** `user_note` (done-gate.sh:36-39) escapes only `\` and `"`; also escape `\r`, `\n`, `\t` and strip other control chars, backslash first. Record in the Verification log which case is skipped on Linux.
   Done when: (1) new cases: a failing gate whose log tail has newlines/tabs AND a literal `\n` yields a `systemMessage` line that `python3 -c 'import json,sys; json.loads(sys.stdin.read())'` accepts (SKIP printed if no python3) — red before, green after; (2) full suite green; (3) no files changed outside `done-gate.sh`, `scripts/test-hooks.sh`, `task_plan.md`.
 
 - [ ] **T2 — environment probe fits multi-site machines (bug U2).** ENV_DOWN gains `spawn docker ENOENT` and `could not be found in this WSL`. New `DONE_GATE_ENV_PORT`: env up = `ports=$(timeout 10 docker ps --format '{{.Ports}}')` then `[[ $ports == *":$PORT->"* ]]` (no pipe into `grep -q`: SIGPIPE under pipefail, per StoreCore). Document `DONE_GATE_ENV_PROBE`/`_PORT` in the hook header and README hooks section (Allaghen curl example).
@@ -66,6 +66,7 @@
 | Suite | Commit | Result |
 |---|---|---|
 | scripts/test-hooks.sh (Linux) | eebc4f8 | 50 passed, 0 failed (baseline) |
+| T1 notice JSON case: red (detail missing) → green | T1 | 51 passed, 0 failed. Linux-skipped case = repo-guard "escaped Windows path" (Git Bash `pwd -W` only) → Windows 51 vs Linux 50 |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## Risks & open questions

@@ -33,8 +33,12 @@ ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
 cd "$ROOT" 2>/dev/null || exit 0
 
 # Message shown to the USER only — does not make Claude take another turn.
+# Any text is escaped (backslash first) so a captured multi-line log cannot
+# make the JSON invalid — Claude Code drops an invalid notice silently.
 user_note() {
   local m=${1//\\/\\\\}; m=${m//\"/\\\"}
+  m=${m//$'\r'/\\r}; m=${m//$'\n'/\\n}; m=${m//$'\t'/\\t}
+  m=$(printf '%s' "$m" | tr -d '\000-\010\013\014\016-\037\177')
   printf '{"systemMessage":"%s"}\n' "$m"
 }
 
@@ -68,6 +72,7 @@ mkdir -p "$LOGDIR"; trap 'rm -rf "$LOGDIR"' EXIT
 NL=$'\n'
 CODE_FAILURES=""
 ENV_FAILURES=""
+ENV_DETAIL=""
 RAN=""
 
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
@@ -102,6 +107,7 @@ run_gate() { # $1 = label, rest = command
   if ! "$@" >"$log" 2>&1; then
     if env_down_failure "$log"; then
       ENV_FAILURES="$ENV_FAILURES $label"
+      [ -z "$ENV_DETAIL" ] && ENV_DETAIL=$(tail -3 "$log")
     else
       CODE_FAILURES="${CODE_FAILURES}${NL}--- $label FAILED ($*) ---${NL}$(tail -30 "$log")"
     fi
@@ -140,7 +146,7 @@ fi
 # NOT RUN goes to the user only (systemMessage): sending it to Claude would
 # force an extra turn on every stop while the environment stays down.
 if [ -n "$ENV_FAILURES" ]; then
-  user_note "done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging."
+  user_note "done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging.${NL}${ENV_DETAIL}"
   exit 0
 fi
 
