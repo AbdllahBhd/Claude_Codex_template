@@ -579,6 +579,11 @@ versus locked to one tool (🔒).
   `git diff`, run the tests, commit. A project that predates v3 has no
   `sync-template.sh` yet: run the template's copy
   (`bash ~/path/to/template/scripts/sync-template.sh ~/path/to/template`).
+  To be told when a project falls behind, set `TEMPLATE_DIR` (your template
+  clone's path) in `.claude/settings.local.json` → `env` (machine-local, never
+  committed; `TEMPLATE_REF` defaults to `main`): on the first prompt of each
+  session, session-guard compares it with `.claude/template-version` (no
+  fetch — `git pull` the template clone yourself).
 
 **Committed (shared via git) vs. personal (git-ignored):**
 

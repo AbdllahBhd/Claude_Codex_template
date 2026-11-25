@@ -10,6 +10,9 @@
 #     then again every CONTEXT_WARN_STEP tokens (default 150000); Claude must
 #     also write a ready-to-paste handoff prompt to docs/handoff.md
 #   - task_plan.md grew past 300 lines / 40 KB (archive finished tasks)
+#   - first prompt only: the template clone at $TEMPLATE_DIR (machine-local:
+#     set it in .claude/settings.local.json "env") has commits on
+#     $TEMPLATE_REF (default main) newer than .claude/template-version
 # Each warning fires once per crossing. Never blocks (always exit 0).
 #
 # Context size is read from the transcript's last "usage" entry: there is no
@@ -81,6 +84,24 @@ if [ -f task_plan.md ] && [ -z "$(get warned_plan)" ]; then
     put warned_plan 1
     MSG="$MSG
 - Tell the user in ONE line: task_plan.md is $LINES lines / $((BYTES / 1024)) KB: move finished tasks to docs/plan-archive.md so every read stays cheap (workflow.md, Plan first)."
+  fi
+fi
+
+# --- 4. Template updates (first prompt of the session; no fetch) ------------
+if [ -z "$(get template_checked)" ]; then
+  put template_checked 1
+  TD=${TEMPLATE_DIR:-}; TREF=${TEMPLATE_REF:-main}
+  if [ -n "$TD" ] && git -C "$TD" rev-parse --verify -q "$TREF^{commit}" >/dev/null 2>&1; then
+    BASE=""; [ -f .claude/template-version ] && BASE=$(sed -n 's/^commit //p' .claude/template-version | head -1)
+    if [ -z "$BASE" ]; then
+      MSG="$MSG
+- Tell the user in ONE line: this project was never synced with the template — run a dry run: bash \"$TD/scripts/sync-template.sh\" \"$TD\" --ref $TREF"
+    elif git -C "$TD" cat-file -e "$BASE^{commit}" 2>/dev/null; then
+      t=""; command -v timeout >/dev/null 2>&1 && t="timeout 5"
+      N=$($t git -C "$TD" rev-list --count "$BASE..$TREF" 2>/dev/null)
+      [ "${N:-0}" -gt 0 ] 2>/dev/null && MSG="$MSG
+- Tell the user in ONE line: the template is $N commits newer than this project's last sync — run scripts/sync-template.sh \"$TD\" --ref $TREF (dry run first)."
+    fi
   fi
 fi
 

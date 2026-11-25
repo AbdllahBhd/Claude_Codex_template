@@ -6,6 +6,7 @@
 #   bash scripts/test-hooks.sh
 
 set -uo pipefail
+unset TEMPLATE_DIR TEMPLATE_REF   # a developer's own setting must not leak into cases
 
 TEMPLATE="$(cd "$(dirname "$0")/.." && pwd)"
 HOOKS="$TEMPLATE/.claude/hooks"
@@ -144,6 +145,23 @@ OUT=$(sg); has "$OUT" "branch changed" && ok "branch change: warns" || bad "bran
 OUT=$(sg); [ -z "$OUT" ] && ok "branch warning only once" || bad "branch repeat" "$OUT"
 seq 1 400 >"$R/task_plan.md"
 OUT=$(sg); has "$OUT" "task_plan.md is 400 lines" && ok "400-line plan: warns" || bad "plan size" "$OUT"
+
+echo "== v3 session-guard: template behind"
+R=$(new_repo); TD=$(new_repo); OLD=$(git -C "$TD" rev-parse HEAD)
+echo two >>"$TD/file.txt"; git -C "$TD" commit -qam two; echo three >>"$TD/file.txt"; git -C "$TD" commit -qam three
+mkdir -p "$R/.claude"
+tg() { (cd "$R" && printf '{"session_id":"%s"}' "$1" | CLAUDE_PROJECT_DIR="$R" "${@:2}" bash "$HOOKS/session-guard.sh" 2>&1); }
+printf 'commit %s\nref main\n' "$OLD" >"$R/.claude/template-version"
+OUT=$(tg tb1 env TEMPLATE_DIR="$TD"); has "$OUT" "2 commits newer" && has "$OUT" "sync-template.sh" && ok "template behind: notice" || bad "behind" "$OUT"
+OUT=$(tg tb1 env TEMPLATE_DIR="$TD"); [ -z "$OUT" ] && ok "behind notice once per session" || bad "behind repeat" "$OUT"
+printf 'commit %s\n' "$(git -C "$TD" rev-parse HEAD)" >"$R/.claude/template-version"
+OUT=$(tg tb2 env TEMPLATE_DIR="$TD"); [ -z "$OUT" ] && ok "template up to date: silent" || bad "up to date" "$OUT"
+OUT=$(tg tb3 env -u TEMPLATE_DIR); [ -z "$OUT" ] && ok "TEMPLATE_DIR unset: silent" || bad "unset" "$OUT"
+printf 'commit %s\n' "0123456789abcdef0123456789abcdef01234567" >"$R/.claude/template-version"
+OUT=$(tg tb4 env TEMPLATE_DIR="$TD"); [ -z "$OUT" ] && ok "stamp commit unknown to TEMPLATE_DIR: silent" || bad "unknown stamp" "$OUT"
+rm "$R/.claude/template-version"
+OUT=$(tg tb5 env TEMPLATE_DIR="$TD"); has "$OUT" "never synced" && ok "no stamp: never-synced notice" || bad "never synced" "$OUT"
+OUT=$(tg tb6 env TEMPLATE_DIR="/nonexistent/x"); [ -z "$OUT" ] && ok "unreadable TEMPLATE_DIR: silent" || bad "bad dir" "$OUT"
 
 echo "== T9 repo-guard"
 R=$(new_repo); O=$(new_repo); O2=$(new_repo)
