@@ -17,6 +17,7 @@ message id is counted once. Figures are list-price estimates, not the bill.
 """
 import argparse
 import datetime
+import getpass
 import glob
 import json
 import os
@@ -56,9 +57,20 @@ def price_row(model, prompt_tokens):
 
 
 def project_key(dirname):
-    """One key per project, whatever mount path or worktree it was opened from."""
+    """One key per project, whatever mount path or worktree it was opened from.
+
+    The user name inside /media/<user> is mangled too ('john.doe' -> 'john-doe'),
+    so the current user's name is stripped first; another user's name containing
+    '.' or '-' is not recognised and that mount path counts as its own project.
+    """
     key = dirname.lower()
     key = re.sub(r"--claude-worktrees-.*$", "", key)
+    try:
+        user = re.escape(re.sub(r"[^a-z0-9]", "-", getpass.getuser().lower()))
+    except (KeyError, OSError):
+        user = None
+    if user:
+        key = re.sub(rf"^-(run-)?media-{user}-", "-mnt-", key)
     key = re.sub(r"^-(run-media-[^-]+-|media-[^-]+-|mnt-)", "", key)
     return key.strip("-")
 

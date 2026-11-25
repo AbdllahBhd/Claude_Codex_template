@@ -452,6 +452,8 @@ else
   OUT=$(LOGNAME=john.doe USER=john.doe python3 -I "$UR" --root "$UT" --json 2>&1)
   E=$(chk "$OUT" 'assert abs(d["total_usd"]-12)<1e-9, d["total_usd"]; assert d["agent_calls"]==3, d["agent_calls"]')
   [ -z "$E" ] && ok "usage-report: lines without a message/tool id are each counted" || bad "id-less dedup" "$E $OUT"
+  E=$(chk "$OUT" 'assert list(d["projects"])==["x-demo"], d["projects"]')
+  [ -z "$E" ] && ok "usage-report: /media/<user with . or -> merges with /mnt" || bad "dotted user" "$E $OUT"
   OUT=$(python3 -I "$UR" --root "$UT" --since 2026-13-01 2>&1); RC=$?
   [ $RC -ne 0 ] && has "$OUT" "YYYY-MM-DD" && ok "usage-report: bad --since date rejected" || bad "date check" "rc=$RC $OUT"
   python3 -I "$UR" --help | grep -q UTC && ok "usage-report: --help says dates are UTC" || bad "UTC help"
