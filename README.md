@@ -13,6 +13,36 @@ you're curious, not before starting.
 
 ---
 
+## What's new in v3 (2026-11)
+
+From an audit of 10 projects' sessions (cost was mostly long contexts,
+model-less subagents and browser work in the main thread):
+
+- **Updates reach projects:** `scripts/sync-template.sh <template-dir>` (dry run;
+  `--apply` to write) updates template-owned files, keeps your edits and your
+  settings `env`, and stamps `.claude/template-version`. `docs/template-files.md`
+  says who owns what; project rules go in `.claude/rules/local-*.md`, extra
+  gates in `.claude/hooks/local/*.sh`. Set `TEMPLATE_DIR` in
+  `.claude/settings.local.json` `env` and session-guard tells you when the
+  template is newer.
+- **Cost caps:** auto-compaction at 300k tokens (`autoCompactWindow`); the
+  context warning now makes the AI finish its step and write a handoff;
+  `/next` hands the next task to a fresh session; `delegate-guard` warns on
+  subagents with no model and on browser work in the main thread.
+- **Device testing:** `scripts/android-emu.sh` and `scripts/android-ui.sh`
+  (tested helpers, no blind sleeps); browser/device checklists in
+  `testing-patterns`; `.claude/launch.json.example`.
+- **Fixes:** done-gate notices survive any log text, multi-site Docker probe
+  (`DONE_GATE_ENV_PORT`), FVM-pinned Flutter and pub workspaces.
+- **Measure it:** `python3 scripts/usage-report.py`.
+
+**Updating a project made from v2:** run the template's copy once —
+`bash <template>/scripts/sync-template.sh <template>` — read the dry run, move
+any "locally modified" rule into `.claude/rules/local-*.md`, then rerun with
+`--apply` and commit. Section 13 has the details.
+
+---
+
 ## 1. Why would I use this?
 
 Think about how you work with AI today, without it:
