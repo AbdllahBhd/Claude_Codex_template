@@ -346,9 +346,12 @@ Plain scripts — not AI — that fire on events:
   localhost-first projects, `SKIP_DONE_GATE=1` to pause it.
   The NOT RUN notice is shown to you, not to the AI — read it.
 - **session-guard.sh** runs on every prompt: when the branch changed, the
-  context passed ~250k tokens (`CONTEXT_WARN_TOKENS`), or `task_plan.md` grew
-  past 300 lines, the AI tells you in one line to start a fresh session,
-  `/compact`, or archive the plan. Long sessions were the #1 cost in real projects.
+  context passed ~150k tokens (`CONTEXT_WARN_TOKENS`, then every
+  `CONTEXT_WARN_STEP`), or `task_plan.md` grew past 300 lines, the AI tells you
+  in one line to start a fresh session or archive the plan. On the context
+  warning it also writes a ready-to-paste handoff prompt to `docs/handoff.md`
+  and shows it — paste it into the new session. Long sessions were the #1 cost
+  in real projects.
 - **repo-guard.sh** runs after shell commands: warns when the AI worked inside
   another folder/repo (that work belongs in its own session).
 - **skill-nudge.sh** runs after edits: once per session, reminds the AI to
