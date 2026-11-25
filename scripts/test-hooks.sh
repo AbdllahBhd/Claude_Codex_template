@@ -374,6 +374,8 @@ FAKE
   ! grep -q 'emu kill' "$AL" && has "$OUT" "no emulator" && ok "down with only a phone: nothing killed" || bad "down phone" "rc=$RC $OUT $(cat "$AL")"
   OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" FAKE_DEVICES='emulator-5554\tdevice' bash "$EMU" status 2>&1); RC=$?
   [ $RC -eq 0 ] && has "$OUT" "emulator-5554" && has "$OUT" "boot" && ok "status: device and boot state" || bad "status" "rc=$RC $OUT"
+  OUT=$(cd "$R" && env PATH="$FA:$PATH" FAKE_DIR="$FA" FAKE_DEVICES='R58M123\tdevice' FAKE_BOOT_AFTER=1 bash "$EMU" status 2>&1)
+  has "$OUT" "boot: no emulator" && ok "status with only a phone: no emulator, not the phone's boot state" || bad "status phone" "$OUT"
   pkill -f "$FA/emulator" 2>/dev/null
 fi
 

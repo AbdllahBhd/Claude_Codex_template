@@ -104,7 +104,8 @@ down() {
 status() {
   pick_emulator
   adb devices 2>/dev/null | sed 1d | sed '/^$/d' | sed 's/^/device: /'
-  booted && echo "boot: completed" || echo "boot: not booted"
+  if [ -z "${ADB_SERIAL:-}" ]; then echo "boot: no emulator"
+  elif booted; then echo "boot: completed"; else echo "boot: not booted"; fi
   command -v free >/dev/null 2>&1 && free -m | awk 'NR==2 {print "RAM free: " $7 " MB of " $2 " MB"}'
   echo "heaviest processes:"
   ps -eo pid,pcpu,pmem,comm --sort=-pcpu 2>/dev/null | head -6 || ps | head -6
