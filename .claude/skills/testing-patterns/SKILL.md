@@ -32,6 +32,10 @@ Commands) — they win over the defaults here.
 - `vi.useFakeTimers()` / `jest.useFakeTimers()` for anything date-based.
 - Targeted run: `npx vitest run path/to/file.test.ts` (or `npx jest path`).
 
+- Playwright e2e: a `globalSetup` seeds its own data (login state, fixtures),
+  so the suite runs on a fresh database; `workers: 1` when tests share that
+  database or one wp-env/backend.
+
 ```ts
 it("rejects orders with an empty cart", async () => {
   const cart = makeCart({ items: [] });
@@ -56,6 +60,10 @@ it("rejects orders with an empty cart", async () => {
   not that `add_action` was called.
 - Translations in tests: the suite may force `WP_LANG_DIR` — load the text
   domain explicitly when asserting translated strings.
+- Stopping wp-env from the host (Ctrl-C, killed shell) leaves
+  PHPUnit running in the container: check `docker ps` before a rerun.
+- While e2e runs, run no lint or wp-env command: they restart or lock the same
+  containers and fail the run halfway.
 - Lint is part of testing here: `composer lint` (PHPCS, WordPress standard).
 
 ## Flutter / Dart
@@ -65,6 +73,10 @@ it("rejects orders with an empty cart", async () => {
   `pumpAndSettle()` on something that never settles.
 - Time: `fakeAsync` / an injected clock.
 - Targeted run: `flutter test test/features/<feature>/`.
+
+- Destructive integration runs (reset, seed, truncate) refuse non-local DB
+  hosts: the test setup aborts unless the host is localhost/127.0.0.1/a docker
+  service name, so a staging `.env` can never be wiped.
 
 ## Python (pytest)
 

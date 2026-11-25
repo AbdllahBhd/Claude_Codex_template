@@ -197,6 +197,15 @@ Read/Grep/Glob and the `gh` CLI cover them). Add one only when a project needs i
 ```
 Note: the filesystem server bypasses `Read(./.env)` deny rules — deny its tools too if you add it.
 
+### Staging WordPress over MCP — 🔧 MCP via `dotenv-cli`
+To let Claude read/act on a staging WordPress site, keep the credentials in a
+git-ignored `.env.staging` and wrap the WordPress MCP server in `dotenv-cli`,
+so `.mcp.json` holds no secret:
+```json
+"wp-staging": { "command": "npx", "args": ["-y", "dotenv-cli", "-e", ".env.staging", "--", "npx", "-y", "<wordpress-mcp-server>"] }
+```
+Staging only — never a production site.
+
 ### firecrawl — ⭐ ~188k — 🔧 MCP (needs API key)
 Web search/scrape/crawl as clean data. Requires a Firecrawl account + API key.
 ```bash

@@ -395,6 +395,14 @@ printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; p
 OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && ok "pub workspace: dart analyze runs in every member" || bad "workspace" "rc=$RC $OUT $(cat "$FL")"
 
+echo "== v3 project lessons in the docs"
+lesson() { grep -qF -- "$2" "$TEMPLATE/$1" && ok "$1: $2" || bad "$1 lacks: $2"; }
+TPS=.claude/skills/testing-patterns/SKILL.md
+lesson $TPS "non-local"; lesson $TPS "PHPUnit running in the container"; lesson $TPS "globalSetup"; lesson $TPS "workers: 1"
+lesson .claude/rules/workflow.md "pgrep -f"; lesson .claude/rules/workflow.md "running shell script"
+lesson .claude/rules/workflow.md "unscoped"; lesson .claude/rules/workflow.md "labelled"
+lesson .claude/rules/pr.md "anchored"; lesson CATALOG.md "dotenv-cli"
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
