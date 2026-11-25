@@ -105,10 +105,10 @@ while IFS= read -r -d '' path; do
   [ -n "$(git -C "$TPL" log -1 --format=%H "$COMMIT" -- "$path")" ] && REMOVED+=("$path")
 done < <(git ls-files -z)
 
-# settings.json, per hook event and permission list: template entries, minus
-# those the project removed since the last sync, plus the project's own.
-# Hook entries calling .claude/hooks/ (not local/) are template-owned: an old
-# one the template dropped is dropped too. Project env and other keys win.
+# settings.json, per hook event + matcher (per command) and permission list:
+# template entries, minus those the project removed since the last sync, plus
+# the project's own; entries the template shipped and later dropped go too.
+# Commands calling .claude/hooks/ (not local/) are template-owned. Project env and other keys win.
 SETTINGS_CHANGED=""
 if [ -n "$SETTINGS" ]; then
   git -C "$TPL" show "$COMMIT:.claude/settings.json" >"$TMP/tpl-settings.json"
@@ -125,21 +125,44 @@ import json, sys
 proj, tpl, base = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:4])
 
 
-def commands(entry):
-    if isinstance(entry, str):
-        return [entry]
-    if isinstance(entry, dict):
-        return [h.get("command", "") for h in entry.get("hooks", []) if isinstance(h, dict)]
-    return []
+def template_cmd(c):
+    return ".claude/hooks/" in c and ".claude/hooks/local/" not in c
 
 
-def template_hook(entry):
-    return any(".claude/hooks/" in c and ".claude/hooks/local/" not in c for c in commands(entry))
+def merge(t, mine, b, key=lambda x: x, drop_mine=lambda x: False):
+    """Three-way: template entries, minus those the project removed since the
+    base, plus the project's own (unless drop_mine says they are stale)."""
+    tk, mk, bk = ({key(x) for x in l} for l in (t, mine, b))
+    kept = [x for x in t if not (key(x) in bk and key(x) not in mk)]
+    return kept + [x for x in mine if key(x) not in tk and not drop_mine(x)]
 
 
-def merge(t, mine, b, drop_mine=lambda x: False):
-    kept = [x for x in t if not (x in b and x not in mine)]
-    return kept + [x for x in mine if x not in t and not drop_mine(x)]
+def groups(entries):  # {matcher: [hook, ...]} for {matcher, hooks} entries
+    out = {}
+    for e in entries:
+        if isinstance(e, dict):
+            out.setdefault(e.get("matcher"), []).extend(h for h in e.get("hooks", []) if isinstance(h, dict))
+    return out
+
+
+def merge_event(t, mine, b):
+    # Plain-string entries (no matcher groups): whole-entry merge.
+    strs = merge([x for x in t if isinstance(x, str)], [x for x in mine if isinstance(x, str)],
+                 [x for x in b if isinstance(x, str)],
+                 drop_mine=lambda x: x in b or template_cmd(x))
+    # {matcher, hooks} groups: merged per command inside each matcher, so a
+    # project edit to a template group keeps both sides.
+    tg, mg, bg = groups(t), groups(mine), groups(b)
+    cmd = lambda h: h.get("command", "")
+    out = []
+    for m in list(tg) + [m for m in mg if m not in tg]:
+        base_cmds = {cmd(h) for h in bg.get(m, [])}
+        hooks = merge(tg.get(m, []), mg.get(m, []), bg.get(m, []), key=cmd,
+                      drop_mine=lambda h: cmd(h) in base_cmds or template_cmd(cmd(h)))
+        if hooks:
+            src = next((e for e in t + mine if isinstance(e, dict) and e.get("matcher") == m), {})
+            out.append({**{k: v for k, v in src.items() if k != "hooks"}, "hooks": hooks})
+    return strs + out
 
 
 out = dict(proj)
@@ -148,8 +171,7 @@ for k, v in tpl.items():
         mine_h, base_h = proj.get(k, {}), base.get(k, {})
         hooks = {}
         for ev in list(v) + [e for e in mine_h if e not in v]:
-            merged = merge(v.get(ev, []), mine_h.get(ev, []), base_h.get(ev, []),
-                           lambda x, b=base_h.get(ev, []): x in b or template_hook(x))
+            merged = merge_event(v.get(ev, []), mine_h.get(ev, []), base_h.get(ev, []))
             if merged:
                 hooks[ev] = merged
         out[k] = hooks
@@ -157,7 +179,8 @@ for k, v in tpl.items():
         perms = dict(proj.get(k, {}))
         for pk, pv in v.items():
             if isinstance(pv, list):
-                perms[pk] = merge(pv, perms.get(pk, []), base.get(k, {}).get(pk, []))
+                b = base.get(k, {}).get(pk, [])
+                perms[pk] = merge(pv, perms.get(pk, []), b, drop_mine=lambda x, b=b: x in b)
             else:
                 perms.setdefault(pk, pv)
         out[k] = perms

@@ -261,6 +261,25 @@ else
   echo new >"$T/.claude/rules/n.md"; git -C "$T" add -A && git -C "$T" commit -qm five
   OUT=$(st --apply); RC=$?
   [ $RC -ne 0 ] && [ "$(cat "$P/.claude/template-version")" = "$STAMP" ] && has "$OUT" "sync-codex" && ok "failed sync-codex: no new stamp, non-zero exit" || bad "sync-codex failure" "rc=$RC $OUT"
+  # Real-shaped settings: {matcher, hooks:[{type, command}]} groups, merged per command.
+  T2=$(new_repo); P2=$(new_repo); mkdir -p "$T2/docs" "$T2/.claude"; cp "$TF" "$T2/docs/template-files.md"
+  G='{"type":"command","command":"bash .claude/hooks/guard.sh"}'
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":['"$G"']}]},"permissions":{"allow":["Bash(ls)","Bash(rm:*)"]}}' >"$T2/.claude/settings.json"
+  git -C "$T2" add -A && git -C "$T2" commit -qm one
+  (cd "$P2" && bash "$SYNC" "$T2" --ref main --apply >/dev/null 2>&1)
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":['"$G"',{"type":"command","command":"bash .claude/hooks/local/mine.sh"}]}]},"permissions":{"allow":["Bash(ls)","Bash(rm:*)"]}}' >"$P2/.claude/settings.json"
+  git -C "$P2" add -A && git -C "$P2" commit -qm mine
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":['"$G"']}],"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh"}]}]},"permissions":{"allow":["Bash(ls)"]}}' >"$T2/.claude/settings.json"
+  git -C "$T2" commit -qam two
+  OUT=$(cd "$P2" && bash "$SYNC" "$T2" --ref main --apply 2>&1); RC=$?
+  E=$(python3 -c '
+import json,sys; d=json.load(open(sys.argv[1])); h=d["hooks"]
+cmds=[x["command"] for g in h["PreToolUse"] if g.get("matcher")=="Bash" for x in g["hooks"]]
+assert cmds==["bash .claude/hooks/guard.sh","bash .claude/hooks/local/mine.sh"], cmds
+assert "Stop" in h, h' "$P2/.claude/settings.json" 2>&1)
+  [ -z "$E" ] && ok "--apply merges hook groups per command: template guard and project local hook both kept" || bad "dict hook merge" "rc=$RC $E $OUT"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["permissions"]["allow"]==["Bash(ls)"], d' "$P2/.claude/settings.json" \
+    && ok "--apply drops an allow rule the template removed" || bad "template-removed rule kept" "$(cat "$P2/.claude/settings.json")"
 fi
 
 echo "== v3 /next command"
