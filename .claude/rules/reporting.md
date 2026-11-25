@@ -68,7 +68,8 @@ user must interrogate before deciding is a failed suggestion.
 
 - **Between tasks:** a new task, branch or feature = a fresh session (or
   `/clear`) — required, not optional (workflow.md, Context discipline). When
-  `session-guard` warns, relay it in one line.
+  `session-guard` warns, relay it in one line; on a context warning also
+  write the handoff (Handoff prompt, below).
 - **Mid-task, when context grows heavy** (many files read, long exploration,
   repeated corrections): suggest `/compact` and NAME what must survive it —
   modified files, plan status, test commands, key decisions.
@@ -77,3 +78,18 @@ user must interrogate before deciding is a failed suggestion.
   important. Chat history is disposable; files are not.
 - After two failed corrections on the same issue, recommend a fresh session
   with a better prompt instead of a third attempt in polluted context.
+
+## Handoff prompt (when `session-guard` warns on context size, or on request)
+
+Overwrite `docs/handoff.md` (git-ignored: local, per-session state — never
+committed, so it never conflicts across machines) with a prompt a session that has seen NOTHING can
+act on, and show it in a code block. Concrete names only — no "as discussed":
+
+- **Task** — the objective in one sentence.
+- **Repo + branch** — path and branch, and the base branch it came from.
+- **Done** — finished steps, each with its commit hash and subject.
+- **Files changed** — paths, one line each on what changed.
+- **Next steps** — ordered, each with how it is verified.
+- **Test/verify commands** — exact commands and their last known result.
+- **Constraints & rules to keep** — user decisions, hard rules (no push, etc.).
+- **Do NOT redo** — work, investigations and rejected approaches already settled.

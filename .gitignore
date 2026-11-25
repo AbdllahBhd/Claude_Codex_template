@@ -7,6 +7,9 @@ CLAUDE.local.md
 .env.*
 !.env.example
 
+# Session handoff prompt (session-guard) — local state, overwritten each time
+docs/handoff.md
+
 # Common junk
 node_modules/
 dist/

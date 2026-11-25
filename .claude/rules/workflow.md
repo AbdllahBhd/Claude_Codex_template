@@ -181,7 +181,9 @@ the touched feature.
   session (or `/clear`) carrying over only `task_plan.md`. Every message
   re-reads the whole context: in audited projects, 400k–970k-token sessions
   spanning up to 20 branches were 65–87% of all cost. `hooks/session-guard.sh`
-  warns on a branch change and past 250k tokens — relay it, don't ignore it.
+  warns on a branch change and past 150k tokens — relay it and write the
+  handoff prompt (reporting.md, Handoff prompt); don't ignore it.
+- Consult the advisor only at decision points (approach choice, repeated failure, before claiming done), never for routine steps.
 - **Name the model on every subagent call** — an omitted model inherits the
   most expensive one. Rule of thumb: a cheaper model is safe when the result
   is OBJECTIVE (a test passes or fails, a script runs); keep the session

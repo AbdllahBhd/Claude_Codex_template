@@ -94,17 +94,21 @@ usage() { printf '{"type":"assistant","message":{"usage":{"input_tokens":5,"cach
 TP=$(cd "$(dirname "$T")" && pwd -W 2>/dev/null)/$(basename "$T"); [ "${TP#/}" = "$TP" ] || TP=$T
 TPJ=${TP//\\/\\\\}   # JSON-escaped, as Claude Code sends Windows paths
 sg() { (cd "$R/sub" && printf '{"session_id":"s1","transcript_path":"%s"}' "$TPJ" | CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/session-guard.sh" 2>&1); }
-usage 1000 50000
-OUT=$(sg); [ -z "$OUT" ] && ok "small context: silent" || bad "small context" "$OUT"
-usage 2000 300000
-OUT=$(sg); has "$OUT" "302k" && ok "300k context: warns (JSON-escaped path)" || bad "big context" "$OUT"
+usage 1000 99000
+OUT=$(sg); [ -z "$OUT" ] && ok "100k context: silent" || bad "small context" "$OUT"
+usage 1000 148000
+OUT=$(sg); [ -z "$OUT" ] && ok "149k context (just under 150k): silent" || bad "below threshold" "$OUT"
+usage 2000 148000
+OUT=$(sg); has "$OUT" "150k" && ok "150k context: warns (JSON-escaped path)" || bad "big context" "$OUT"
+has "$OUT" "docs/handoff.md" && ok "context warning asks for a handoff in docs/handoff.md" || bad "handoff path" "$OUT"
+if has "$OUT" "ONE short line, then continue"; then bad "wrapper contradicts handoff step" "$OUT"; else ok "wrapper does not cap the reply at one line"; fi
 OUT=$(sg); [ -z "$OUT" ] && ok "same level: warns only once" || bad "repeat warning" "$OUT"
-usage 2000 420000
-OUT=$(sg); has "$OUT" "422k" && ok "next step (+150k): warns again" || bad "step warning" "$OUT"
+usage 2000 300000
+OUT=$(sg); has "$OUT" "302k" && ok "next step (+150k): warns again" || bad "step warning" "$OUT"
 usage 2000 20000
 OUT=$(sg); [ -z "$OUT" ] && ok "after /compact: silent" || bad "post-compact" "$OUT"
-usage 2000 280000
-OUT=$(sg); has "$OUT" "282k" && ok "re-armed: warns again after growing back" || bad "re-arm" "$OUT"
+usage 2000 160000
+OUT=$(sg); has "$OUT" "162k" && ok "re-armed: warns again after growing back" || bad "re-arm" "$OUT"
 git -C "$R" checkout -qb feat/other
 OUT=$(sg); has "$OUT" "branch changed" && ok "branch change: warns" || bad "branch" "$OUT"
 OUT=$(sg); [ -z "$OUT" ] && ok "branch warning only once" || bad "branch repeat" "$OUT"

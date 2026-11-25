@@ -6,8 +6,9 @@
 # On each prompt it checks, and tells Claude (plain stdout = added context) to
 # relay a ONE-LINE suggestion to the user when:
 #   - the git branch changed since this session started (new task)
-#   - the last context size passed CONTEXT_WARN_TOKENS (default 250000),
-#     then again every CONTEXT_WARN_STEP tokens (default 150000)
+#   - the last context size passed CONTEXT_WARN_TOKENS (default 150000),
+#     then again every CONTEXT_WARN_STEP tokens (default 150000); Claude must
+#     also write a ready-to-paste handoff prompt to docs/handoff.md
 #   - task_plan.md grew past 300 lines / 40 KB (archive finished tasks)
 # Each warning fires once per crossing. Never blocks (always exit 0).
 #
@@ -46,12 +47,12 @@ if [ -n "$BRANCH" ]; then
   elif [ "$BRANCH" != "$START_BRANCH" ] && [ "$(get warned_branch)" != "$BRANCH" ]; then
     put warned_branch "$BRANCH"
     MSG="$MSG
-- The git branch changed from '$START_BRANCH' to '$BRANCH' in this session: a new task should start in a fresh session (/clear, or a new session), carrying over only task_plan.md."
+- Tell the user in ONE line: the git branch changed from '$START_BRANCH' to '$BRANCH' in this session: a new task should start in a fresh session (/clear, or a new session), carrying over only task_plan.md."
   fi
 fi
 
 # --- 2. Context size --------------------------------------------------------
-WARN_AT=${CONTEXT_WARN_TOKENS:-250000}
+WARN_AT=${CONTEXT_WARN_TOKENS:-150000}
 STEP=${CONTEXT_WARN_STEP:-150000}
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   USAGE=$(tail -c 3000000 "$TRANSCRIPT" 2>/dev/null | grep -o '"usage"[[:space:]]*:[[:space:]]*{[^}]*}' | tail -1)
@@ -67,7 +68,7 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
     if [ "$LEVEL" -gt "${LAST:--1}" ]; then
       put ctx_level "$LEVEL"
       MSG="$MSG
-- Context is about $((CTX / 1000))k tokens: every message now re-reads all of it. Recommend /compact (name what must survive: modified files, plan status, test commands) or a fresh session once the current step is done."
+- Context is about $((CTX / 1000))k tokens: every message now re-reads all of it. (a) Tell the user in ONE line and recommend a fresh session. (b) As soon as the current step is done (not mid-step), write a ready-to-paste handoff prompt to docs/handoff.md (overwrite it; format: reporting.md, Handoff prompt) and show it to the user in a code block."
     fi
   fi
 fi
@@ -79,11 +80,11 @@ if [ -f task_plan.md ] && [ -z "$(get warned_plan)" ]; then
   if [ "$LINES" -gt 300 ] || [ "$BYTES" -gt 40000 ]; then
     put warned_plan 1
     MSG="$MSG
-- task_plan.md is $LINES lines / $((BYTES / 1024)) KB: move finished tasks to docs/plan-archive.md so every read stays cheap (workflow.md, Plan first)."
+- Tell the user in ONE line: task_plan.md is $LINES lines / $((BYTES / 1024)) KB: move finished tasks to docs/plan-archive.md so every read stays cheap (workflow.md, Plan first)."
   fi
 fi
 
 if [ -n "$MSG" ]; then
-  printf 'session-guard (usage hygiene): tell the user in ONE short line, then continue with their request:%s\n' "$MSG"
+  printf 'session-guard (usage hygiene): act on each item below, then continue with their request:%s\n' "$MSG"
 fi
 exit 0
