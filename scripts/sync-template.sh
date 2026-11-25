@@ -33,6 +33,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$TPL" ] || usage
+# Resolve before cd: a relative path is relative to where the user ran us.
+TPL_ARG=$TPL
+TPL=$(cd "$TPL" 2>/dev/null && pwd) || { echo "sync-template: $TPL_ARG is not a directory" >&2; exit 1; }
 
 PROJ=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "sync-template: run it inside the project's git repo" >&2; exit 1; }
 cd "$PROJ" || exit 1
@@ -166,7 +169,7 @@ with open(sys.argv[4], "w", encoding="utf-8") as f:
     json.dump(out, f, indent=2, ensure_ascii=False)
     f.write("\n")
 PY
-    python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1]))!=json.load(open(sys.argv[2])))' \
+    python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1],encoding="utf-8"))!=json.load(open(sys.argv[2],encoding="utf-8")))' \
       .claude/settings.json "$TMP/merged-settings.json" || SETTINGS_CHANGED=1
   fi
 fi
@@ -204,7 +207,10 @@ for p in "${NEW[@]}" "${UPDATED[@]}"; do
   [ "$(git -C "$TPL" ls-tree "$COMMIT" -- "$p" | cut -d' ' -f1)" = 100755 ] && chmod +x "$p"
 done
 [ -n "$SETTINGS_CHANGED" ] && { mkdir -p .claude; cp "$TMP/merged-settings.json" .claude/settings.json; }
-[ "$CHANGES" -gt 0 ] && [ -f scripts/sync-codex.sh ] && bash scripts/sync-codex.sh >/dev/null
+if [ "$CHANGES" -gt 0 ] && [ -f scripts/sync-codex.sh ] && ! bash scripts/sync-codex.sh >/dev/null; then
+  echo "sync-template: files written, but scripts/sync-codex.sh failed — not stamped. Fix it and re-run --apply." >&2
+  exit 1
+fi
 mkdir -p .claude
 printf 'commit %s\nref %s\ndate %s\n' "$COMMIT" "$REF" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$STAMP_FILE"
 echo "applied $CHANGES change(s); stamped $STAMP_FILE. Review with git diff, run the tests, then commit."

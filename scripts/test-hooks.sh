@@ -254,6 +254,13 @@ else
   OUT=$(st --apply); RC=$?
   [ "$(cat "$T/.claude/rules/café.md")" = "$(cat "$P/.claude/rules/café.md" 2>/dev/null)" ] && ok "--apply handles non-ASCII paths" || bad "non-ASCII path" "rc=$RC $OUT"
   [ "$(cat "$X/out.sh")" = "echo v3" ] && has "$OUT" "symlink" && ok "--apply never writes through a symlink" || bad "symlink write" "rc=$RC $OUT $(cat "$X/out.sh")"
+  OUT=$(cd "$P/sub" && bash "$SYNC" "../../$(basename "$T")" --ref main 2>&1); RC=$?
+  [ $RC -eq 0 ] && has "$OUT" "Template:" && ok "relative template path works from a subfolder" || bad "relative TPL" "rc=$RC $OUT"
+  git -C "$P" add -A && git -C "$P" commit -qm four; STAMP=$(cat "$P/.claude/template-version")
+  mkdir -p "$P/scripts"; printf '#!/usr/bin/env bash\nexit 1\n' >"$P/scripts/sync-codex.sh"
+  echo new >"$T/.claude/rules/n.md"; git -C "$T" add -A && git -C "$T" commit -qm five
+  OUT=$(st --apply); RC=$?
+  [ $RC -ne 0 ] && [ "$(cat "$P/.claude/template-version")" = "$STAMP" ] && has "$OUT" "sync-codex" && ok "failed sync-codex: no new stamp, non-zero exit" || bad "sync-codex failure" "rc=$RC $OUT"
 fi
 
 echo "== v3 /next command"
