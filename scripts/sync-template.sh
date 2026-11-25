@@ -35,7 +35,7 @@ done
 [ -n "$TPL" ] || usage
 # Resolve before cd: a relative path is relative to where the user ran us.
 TPL_ARG=$TPL
-TPL=$(cd "$TPL" 2>/dev/null && pwd) || { echo "sync-template: $TPL_ARG is not a directory" >&2; exit 1; }
+TPL=$(CDPATH= cd -- "$TPL" 2>/dev/null && pwd) || { echo "sync-template: $TPL_ARG is not a directory" >&2; exit 1; }
 
 PROJ=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "sync-template: run it inside the project's git repo" >&2; exit 1; }
 cd "$PROJ" || exit 1
@@ -198,16 +198,16 @@ PY
 fi
 
 echo "Template: $TPL @ $REF (${COMMIT:0:12})${BASE:+, last synced ${BASE:0:12}}"
-for p in "${NEW[@]}"; do echo "new               $p"; done
-for p in "${UPDATED[@]}"; do echo "updated           $p"; done
+for p in ${NEW[@]+"${NEW[@]}"}; do echo "new               $p"; done
+for p in ${UPDATED[@]+"${UPDATED[@]}"}; do echo "updated           $p"; done
 if [ -n "$SETTINGS_CHANGED" ]; then
   echo "merge             .claude/settings.json (template hooks/permissions, your own hooks/rules/env kept)"
   [ -f .claude/settings.json ] && diff -u --label "project/.claude/settings.json" --label "merged" \
     .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
 fi
-for p in "${SYMLINKED[@]}"; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
-for p in "${REMOVED[@]}"; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
-for p in "${MODIFIED[@]}"; do
+for p in ${SYMLINKED[@]+"${SYMLINKED[@]}"}; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
+for p in ${REMOVED[@]+"${REMOVED[@]}"}; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
+for p in ${MODIFIED[@]+"${MODIFIED[@]}"}; do
   echo "locally modified  $p  (kept — move your change into .claude/rules/local-*.md or .claude/hooks/local/)"
   git -C "$TPL" show "$COMMIT:$p" >"$TMP/tpl-file"
   diff -u --label "template/$p" --label "project/$p" "$TMP/tpl-file" "$p" | head -40 | sed 's/^/    /'
@@ -224,7 +224,7 @@ fi
 
 if [ "$CHANGES" -eq 0 ] && [ "$OLD_STAMP" = "$COMMIT" ]; then echo "no changes to apply."; exit 0; fi
 
-for p in "${NEW[@]}" "${UPDATED[@]}"; do
+for p in ${NEW[@]+"${NEW[@]}"} ${UPDATED[@]+"${UPDATED[@]}"}; do
   mkdir -p "$(dirname "$p")"
   git -C "$TPL" show "$COMMIT:$p" >"$p"
   [ "$(git -C "$TPL" ls-tree "$COMMIT" -- "$p" | cut -d' ' -f1)" = 100755 ] && chmod +x "$p"
