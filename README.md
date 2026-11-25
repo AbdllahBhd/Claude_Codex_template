@@ -407,6 +407,7 @@ in the template                in CLAUDE CODE             in CODEX
 .claude/commands/retro.md  →   /retro                     $retro
 .claude/commands/deploy.md →   /deploy                    $deploy
 .claude/commands/install.md →  /install                   $install
+.claude/commands/next.md   →   /next                      $next
 ```
 
 Four facts, that's all there is to it:
@@ -423,7 +424,7 @@ Four facts, that's all there is to it:
    runs retro focused on testing.
 
 Don't confuse them with **built-in commands** (`/clear`, `/cost`, `/init`...):
-those ship with the tools and exist everywhere. The three above exist only in
+those ship with the tools and exist everywhere. The commands above exist only in
 projects that carry this template — because the files do.
 
 ### The template's commands
@@ -433,6 +434,7 @@ projects that carry this template — because the files do.
 | `/retro` | `$retro` | Writes this session's lessons into the rule files | `/retro` · `/retro testing` (focus on one topic) |
 | `/install` | `$install` | Shows/installs optional tools from CATALOG.md | `/install` (menu) · `/install context7` · partial names work |
 | `/deploy` | `$deploy` | Checklist: clean tree → lint → tests → build, then deploy | `/deploy` (staging) · `/deploy production` (asks confirmation) |
+| `/next` | `$next` | Picks the ONE next task, writes `docs/handoff.md`, branches on your yes, then tells you to open a fresh session — never starts the work | `/next` · `/next bugs first` |
 
 **Built into Claude Code** (every project, no template needed) — the ones worth
 knowing: `/code-review` (the serious bug hunt), `/init` (generate CLAUDE.md —

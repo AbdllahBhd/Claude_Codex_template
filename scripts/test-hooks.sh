@@ -244,6 +244,19 @@ else
   [ $RC -eq 0 ] && [ -z "$(git -C "$P" status --porcelain)" ] && has "$OUT" "no changes" && ok "second --apply: no changes" || bad "second apply" "rc=$RC $OUT $(git -C "$P" status --porcelain)"
 fi
 
+echo "== v3 /next command"
+NX="$TEMPLATE/.claude/commands/next.md"
+if [ -f "$NX" ]; then
+  miss=""
+  for k in task_plan.md "git log -5" "git status" "docs/handoff.md" "fresh session" "Never start the work" "Relation"; do
+    grep -qF "$k" "$NX" || miss="$miss [$k]"
+  done
+  [ -z "$miss" ] && ok "next.md has every step" || bad "next.md missing:$miss"
+else bad "next.md exists"; fi
+grep -q '`/next`' "$TEMPLATE/README.md" && ok "README lists /next" || bad "README lists /next"
+grep -q '/next' "$TEMPLATE/.claude/rules/delivery.md" && ok "delivery.md points to /next" || bad "delivery.md points to /next"
+[ -f "$TEMPLATE/.agents/skills/next/SKILL.md" ] && ok ".agents/skills/next mirrored" || bad ".agents/skills/next mirrored"
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
