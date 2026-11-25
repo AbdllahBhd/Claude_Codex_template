@@ -115,9 +115,12 @@ def scan(root, only_project, since, until):
                 if e.get("type") != "assistant":
                     continue
                 for c in content:
-                    if not isinstance(c, dict) or c.get("type") != "tool_use" or c.get("id") in seen_tools:
+                    if not isinstance(c, dict) or c.get("type") != "tool_use":
                         continue
-                    seen_tools.add(c.get("id"))
+                    if c.get("id"):  # an id-less call cannot be a repeat of another
+                        if c["id"] in seen_tools:
+                            continue
+                        seen_tools.add(c["id"])
                     name = c.get("name", "")
                     if name in ("Agent", "Task"):
                         r["agent_calls"] += 1
@@ -126,9 +129,10 @@ def scan(root, only_project, since, until):
                     elif name.startswith(BROWSER_PREFIXES) and not side:
                         r["main_browser_calls"] += 1
                 mid, usage = msg.get("id"), msg.get("usage")
-                if not usage or mid in seen_msgs:
+                if not usage or (mid and mid in seen_msgs):
                     continue
-                seen_msgs.add(mid)
+                if mid:
+                    seen_msgs.add(mid)
                 sid = e.get("sessionId") or os.path.basename(path)
                 model = msg.get("model", "?")
                 inp = usage.get("input_tokens", 0) or 0

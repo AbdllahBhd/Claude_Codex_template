@@ -446,6 +446,12 @@ else
   [ -z "$E" ] && ok "usage-report: --until, subagent share, Agent-without-model, main-thread browser, context peaks" || bad "usage details" "$E $OUT"
   OUT=$(python3 -I "$UR" --root "$TEMPLATE/scripts/fixtures/usage" 2>&1); RC=$?
   [ $RC -eq 0 ] && has "$OUT" "x-develope-demo" && has "$OUT" "Prices as of" && ok "usage-report: text report" || bad "usage text" "rc=$RC $OUT"
+  UT=$(mktemp -d); mkdir -p "$UT/-mnt-x-demo" "$UT/-media-john-doe-x-demo"
+  L='{"type":"assistant","timestamp":"2026-11-20T10:00:00Z","sessionId":"s9","message":{"model":"claude-opus-5-5","usage":{"input_tokens":1000000},"content":[{"type":"tool_use","name":"Agent","input":{}}]}}'
+  printf '%s\n%s\n' "$L" "$L" >"$UT/-mnt-x-demo/s9.jsonl"; printf '%s\n' "$L" >"$UT/-media-john-doe-x-demo/s9.jsonl"
+  OUT=$(LOGNAME=john.doe USER=john.doe python3 -I "$UR" --root "$UT" --json 2>&1)
+  E=$(chk "$OUT" 'assert abs(d["total_usd"]-12)<1e-9, d["total_usd"]; assert d["agent_calls"]==3, d["agent_calls"]')
+  [ -z "$E" ] && ok "usage-report: lines without a message/tool id are each counted" || bad "id-less dedup" "$E $OUT"
 fi
 
 echo
