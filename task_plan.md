@@ -79,8 +79,25 @@
 | T11 guidance: 4 cases (sections + strings, .agents sync, launch.json.example parses, adb allow-list) red → green | fe0523b | 116 passed, 0 failed |
 | T12 FVM/workspace: 3 cases (fake fvm/flutter/dart: `.fvmrc` → fvm, `.fvmrc`+wrapper → wrapper, 2-member workspace → analyze in both) red → green; fixtures built inline in the test (no `scripts/fixtures/` file needed) | 0514b21 | 119 passed, 0 failed |
 | T13 lessons: 10 grep cases red → green ("running shell script" phrased "Never edit a running shell script"; CATALOG entry names no specific WP MCP package — unverified, left as placeholder); sync-codex run | 30bccee | 129 passed, 0 failed |
-| T14 usage-report: 3 fixture cases red → green (exact totals, dedup, mount merge, --until, no-model, main-thread browser/images). Real run `--until 2026-11-25`: **$3,945.54 (−5.4% vs $4,170: outside ±5%)**, 298/582 Agent calls without model (51% ✓), 2,732 main-thread images (exact ✓), 3,715 main browser calls (audit 3,982 counted all threads), 75 sessions (audit 74), 71 >150k / 41 >400k, subagents 20%. Box left unchecked: amendment proposed under Risks | T14 | 132 passed, 0 failed |
+| T14 usage-report: 3 fixture cases red → green (exact totals, dedup, mount merge, --until, no-model, main-thread browser/images). Real run `--until 2026-11-25`: **$3,945.54 (−5.4% vs $4,170: outside ±5%)**, 298/582 Agent calls without model (51% ✓), 2,732 main-thread images (exact ✓), 3,715 main browser calls (audit 3,982 counted all threads), 75 sessions (audit 74), 71 >150k / 41 >400k, subagents 20%. Box left unchecked: amendment proposed under Risks | 1497e47 | 132 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
+
+## T15 review findings (code-reviewer, opus, `develop...55e6e2a`): verdict "request changes"
+| # | Sev | Where | Finding | Status |
+|---|---|---|---|---|
+| 1 | major | done-gate.sh:156-161 | `.fvmrc`+`scripts/flutter.sh`+workspace → members analyzed with global `dart`; should use `$FLUTTER analyze --no-pub` per member (absolute wrapper path), `full` → tests per member; add `.fvmrc` workspace test | open |
+| 2 | major | sync-template.sh:108-115 | settings merge replaces project `hooks` wholesale and re-adds removed allow rules; merge hooks per event keeping project-only commands; dry run prints `diff -u`; test with a project-only hook | open |
+| 3 | major | android-ui.sh:105-108 | failed `uiautomator dump` → stale `/sdcard/ui.xml` read; `rm -f` before dump, fail unless output has "dumped to"; fake adb failure case | open |
+| 4 | major | android-ui.sh, android-emu.sh | Git Bash rewrites `/sdcard`, `/data` for adb.exe; `export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'` | open |
+| 5 | major | android-emu.sh:22-49 | phone attached + no ADB_SERIAL → "more than one device"; start with `-port`, set `ADB_SERIAL=emulator-<port>`, `kill -0 $!` in poll loop | open |
+| 6 | minor | usage-report.py:118,129 | `mid`/tool id `None` dedups every later id-less line; dedup only when id set | open |
+| 7 | minor | usage-report.py:128 | first line per id wins; verify whether early lines carry partial `output_tokens`, else keep max | open (verify) |
+| 8 | minor | usage-report.py:70 | validate `--since/--until` with `date.fromisoformat`; say UTC | open |
+| 9 | minor | usage-report.py:61 | `media-[^-]+-` fails for user names with `.`/`-`; document or `--alias` | open |
+| 10 | minor | delegate-guard.sh:40 | plugin types (`x:y`) / name≠filename never found → false warn/deny in strict; skip `:` types, read frontmatter only | open |
+| 11 | minor | delegate-guard.sh:33,43 | `TYPE` unescaped in JSON (trailing `\`); strip to `[A-Za-z0-9:_-]` | open |
+| 12 | minor | sync-template.sh:83,90,156 | quoted non-ASCII paths (`core.quotePath`); writes through symlinks outside project; use `-z`, skip symlinked paths | open |
+| 13 | minor | sync-template.sh:36,127,160 | relative TPL resolved after `cd`; `open()` w/o encoding; sync-codex failure ignored before stamp | open |
 
 ## Risks & open questions
 - **Release branch (owner decision):** `main` is 12 commits behind `develop`. T4/T5 default `--ref`/`TEMPLATE_REF` to whichever branch the owner names; recommend merging `develop` → `main` after T15 and syncing from `main`.
