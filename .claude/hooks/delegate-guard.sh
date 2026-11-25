@@ -29,6 +29,8 @@ once() {  # once <key>: true the first time this session sees <key>
   grep -qxF "$1" "$dir/delegate-${SESSION:-unknown}" 2>/dev/null && return 1
   echo "$1" >>"$dir/delegate-${SESSION:-unknown}"
 }
+# Lines between the opening and closing `---` of an agent file.
+frontmatter() { awk '{sub(/\r$/, "")} NR == 1 && $0 != "---" {exit} NR > 1 && $0 == "---" {exit} NR > 1 {print}' "$1"; }
 context() {
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$1"
 }
@@ -37,8 +39,16 @@ case "$TOOL" in
   Agent|Task)
     [ -n "$(field model)" ] && exit 0
     TYPE=$(field subagent_type); TYPE=${TYPE:-general-purpose}
-    for f in "$ROOT/.claude/agents/$TYPE.md" "$HOME/.claude/agents/$TYPE.md"; do
-      [ -f "$f" ] && grep -qE '^model:[[:space:]]*[^[:space:]]' "$f" && exit 0
+    # A plugin agent (plugin:name) lives outside these folders: its model is unknowable here.
+    case "$TYPE" in *:*) exit 0 ;; esac
+    # Claude Code matches the frontmatter `name:`, not the file name; project wins over user.
+    for f in "$ROOT/.claude/agents/"*.md "$HOME/.claude/agents/"*.md; do
+      [ -f "$f" ] || continue
+      FM=$(frontmatter "$f")
+      NAME=$(printf '%s\n' "$FM" | sed -n 's/^name:[[:space:]]*//p' | head -1 | tr -d "\"' ")
+      [ "${NAME:-$(basename "$f" .md)}" = "$TYPE" ] || continue
+      printf '%s\n' "$FM" | grep -qE '^model:[[:space:]]*[^[:space:]]' && exit 0
+      break
     done
     MSG="delegate-guard: this $TYPE subagent call names no model, so it inherits the session's (most expensive) model. Pick one from the model table in .claude/rules/workflow.md (Context discipline): haiku for test runs and lookups, sonnet for scripted browser checks and tight builds, session model only where judgment decides quality."
     if [ "$MODE" = "strict" ]; then

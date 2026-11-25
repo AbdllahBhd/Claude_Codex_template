@@ -269,7 +269,8 @@ if [ ! -f "$DG" ]; then bad "delegate-guard.sh exists"
 else
   R=$(new_repo); mkdir -p "$R/.claude/agents"
   printf -- '---\nname: code-reviewer\nmodel: inherit\n---\n' >"$R/.claude/agents/code-reviewer.md"
-  dg() { printf '%s' "$2" | CLAUDE_PROJECT_DIR="$R" DELEGATE_GUARD="$1" bash "$DG" 2>&1; }
+  DH=$(mktemp -d)   # empty HOME: the developer's own ~/.claude/agents must not leak in
+  dg() { printf '%s' "$2" | HOME="$DH" CLAUDE_PROJECT_DIR="$R" DELEGATE_GUARD="$1" bash "$DG" 2>&1; }
   ag() { printf '{"session_id":"%s","tool_name":"Agent","tool_input":{"description":"d","prompt":"say \\"model\\": x","subagent_type":"%s"%s}}' "$1" "$2" "${3:+,\"model\":\"$3\"}"; }
   OUT=$(dg "" "$(ag a1 general-purpose)"); RC=$?
   [ $RC -eq 0 ] && has "$OUT" "additionalContext" && has "$OUT" "workflow.md" && ok "Agent without model: warning, not deny" || bad "no-model warn" "rc=$RC $OUT"
@@ -280,6 +281,13 @@ else
   [ $RC -eq 2 ] && has "$OUT" "model" && ok "DELEGATE_GUARD=strict denies (exit 2)" || bad "strict" "rc=$RC $OUT"
   OUT=$(dg off "$(ag a5 general-purpose)"); RC=$?
   [ $RC -eq 0 ] && [ -z "$OUT" ] && ok "DELEGATE_GUARD=off: silent" || bad "off" "rc=$RC $OUT"
+  OUT=$(dg strict "$(ag a6 superpowers:code-reviewer)"); RC=$?
+  [ $RC -eq 0 ] && [ -z "$OUT" ] && ok "plugin agent type (x:y): never denied, its model is unknowable" || bad "plugin type" "rc=$RC $OUT"
+  printf -- '---\nname: my-rev\nmodel: sonnet\n---\n' >"$R/.claude/agents/reviewer.md"
+  OUT=$(dg strict "$(ag a7 my-rev)"); RC=$?
+  [ $RC -eq 0 ] && ok "agent found by frontmatter name, not file name" || bad "name lookup" "rc=$RC $OUT"
+  printf -- '---\nname: body-only\n---\nmodel: sonnet in the body\n' >"$R/.claude/agents/body-only.md"
+  OUT=$(dg "" "$(ag a8 body-only)"); has "$OUT" "additionalContext" && ok "model: in the body (not frontmatter) does not count" || bad "body model" "$OUT"
   br() { printf '{"session_id":"%s","tool_name":"mcp__Claude_Browser__computer","tool_input":{"action":"screenshot"}%s}' "$1" "${2:+,\"agent_id\":\"$2\",\"agent_type\":\"general-purpose\"}"; }
   OUT=$(dg "" "$(br b1)"); has "$OUT" "sonnet" && has "$OUT" "subagent" && ok "main-thread browser call: reminder" || bad "browser remind" "$OUT"
   OUT=$(dg "" "$(br b1)"); [ -z "$OUT" ] && ok "browser reminder once per session" || bad "browser once" "$OUT"
