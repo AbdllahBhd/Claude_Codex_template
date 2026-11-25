@@ -59,7 +59,7 @@
 - [x] **T14 — Repeatable usage report.** `scripts/usage-report.py [--project <path>] [--since D] [--until D]` (python3 stdlib, read-only): per project/model tokens and $ (dated price table at top), max context per session, sessions >150k / >400k, subagent share, Agent calls without model, main-thread browser calls/images; merges all mount-path variants of the project dir; dedups usage by message id.
   Done when (amended 2026-11-25, owner-approved: the audit's price assumptions were never recorded): (1) `--until 2026-11-25` over all projects reports ≈ $4,170 ±10% with the documented price table and ≈50% Agent calls without model; a fixture JSONL in test-hooks gives exact expected totals (SKIP without python3); (2) suite green; (3) fence: the script, `scripts/fixtures/`, `scripts/test-hooks.sh`, `README.md`, `docs/template-files.md`, `task_plan.md`.
 
-- [ ] **T15 — Delivery.** `bash scripts/gate-scope.sh` tier; full `scripts/test-hooks.sh`; `bash -n` on all `.sh`; one code-reviewer pass on the branch diff (fix or rebut each finding, max 2 fix rounds); README "What's new in v3" + update instructions; merge `chore/template-v3` into `develop`, not pushed without the owner's yes.
+- [x] **T15 — Delivery.** `bash scripts/gate-scope.sh` tier; full `scripts/test-hooks.sh`; `bash -n` on all `.sh`; one code-reviewer pass on the branch diff (fix or rebut each finding, max 2 fix rounds); README "What's new in v3" + update instructions; merge `chore/template-v3` into `develop`, not pushed without the owner's yes.
   Done when: (1) review findings table in the Verification log; (2) suite green at the merge commit; (3) `git diff --name-only develop...` lists only In-scope paths.
 
 ## Verification log
@@ -82,6 +82,7 @@
 | T14 usage-report: 3 fixture cases red → green (exact totals, dedup, mount merge, --until, no-model, main-thread browser/images). Real run `--until 2026-11-25`: **$3,945.54 (−5.4% vs $4,170: outside ±5%)**, 298/582 Agent calls without model (51% ✓), 2,732 main-thread images (exact ✓), 3,715 main browser calls (audit 3,982 counted all threads), 75 sessions (audit 74), 71 >150k / 41 >400k, subagents 20%. Box left unchecked: amendment proposed under Risks | 1497e47 | 132 passed, 0 failed |
 | T14 amended Done-when (±10%, owner-approved). Re-run after the id-less fix: $3,958.02 (−5.1%), 298/583 Agent calls without model (51%) | 3e4c53b | ✓ |
 | T15 review fixes 1–13: each case red → green (22 new/changed cases), split commits each tested on their staged snapshot; finding 7 rebutted with real-log evidence | 3ae4ba4 | 154 passed, 0 failed |
+| T15 re-review round 1 (A–E): 3 red → green, split commits tested per snapshot; `bash -n` all `.sh` ok; gate-scope TIER=full; `git diff --name-only develop...` → 0 paths outside In scope | dd0c1da | 157 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## T15 review findings (code-reviewer, opus, `develop...55e6e2a`): verdict "request changes"
@@ -100,6 +101,17 @@
 | 11 | minor | delegate-guard.sh:33,43 | `TYPE` unescaped in JSON (trailing `\`); strip to `[A-Za-z0-9:_-]` | fixed ef6260f (stripped to `[A-Za-z0-9:_-]`) |
 | 12 | minor | sync-template.sh:83,90,156 | quoted non-ASCII paths (`core.quotePath`); writes through symlinks outside project; use `-z`, skip symlinked paths | fixed cc86773 |
 | 13 | minor | sync-template.sh:36,127,160 | relative TPL resolved after `cd`; `open()` w/o encoding; sync-codex failure ignored before stamp | fixed 3ae4ba4 (TPL resolved before `cd`; `encoding="utf-8"`; sync-codex failure → exit 1, no stamp) |
+
+## T15 re-review (code-reviewer, opus, `74a40ac..068b4a6`): verdict "request changes" — fix round 1 of 2
+Findings 1, 3–13 judged resolved, 2 partial, rebuttal 7 accepted. New:
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| A | major | real `{matcher, hooks}` groups compared whole: a project edit to a template group dropped both the template hook and the project's local one | fixed 6fcbc6c (merge per command inside each matcher; dict-shaped test) |
+| B | major | allow rules the template removed were kept forever | fixed 6fcbc6c (three-way drop; test) |
+| C | minor | `"${arr[@]}"` on empty arrays under `set -u` aborts on bash < 4.4 (macOS 3.2) | fixed 40bb166 (`${a[@]+"${a[@]}"}`; no bash 3.2 here to run it) |
+| D | nit | exported `CDPATH` makes `cd` print → bad TPL | fixed 40bb166 |
+| E | nit | `status` with only a phone printed the phone's boot state | fixed dd0c1da (test) |
+Decision: a project's change to a template hook's own fields (e.g. `timeout`) is overwritten by the template's version — the template owns its hooks; changes belong in `.claude/hooks/local/`.
 
 ## Risks & open questions
 - **Release branch (owner decision):** `main` is 12 commits behind `develop`. T4/T5 default `--ref`/`TEMPLATE_REF` to whichever branch the owner names; recommend merging `develop` → `main` after T15 and syncing from `main`.
