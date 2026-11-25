@@ -16,6 +16,7 @@ as one project. Streamed messages repeat their usage on every line: each
 message id is counted once. Figures are list-price estimates, not the bill.
 """
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -65,6 +66,13 @@ def project_key(dirname):
 def mangle(path):
     """Claude Code's projects-dir name for a path: non-alphanumerics become '-'."""
     return re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(path))
+
+
+def day(value):
+    try:
+        return datetime.date.fromisoformat(value).isoformat()
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value!r}: expected YYYY-MM-DD") from None
 
 
 def in_range(ts, since, until):
@@ -164,8 +172,8 @@ def scan(root, only_project, since, until):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--project", help="project path (default: all projects)")
-    ap.add_argument("--since", help="YYYY-MM-DD, inclusive")
-    ap.add_argument("--until", help="YYYY-MM-DD, inclusive")
+    ap.add_argument("--since", type=day, help="YYYY-MM-DD, inclusive (log timestamps are UTC)")
+    ap.add_argument("--until", type=day, help="YYYY-MM-DD, inclusive (log timestamps are UTC)")
     ap.add_argument("--root", default=os.path.expanduser("~/.claude/projects"), help="session log directory")
     ap.add_argument("--json", action="store_true", help="print JSON instead of text")
     a = ap.parse_args()
