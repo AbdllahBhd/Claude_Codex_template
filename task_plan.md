@@ -101,7 +101,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
 
 - [x] **T0 — Survey dry run (read-only).** Results are in the Verification log. Total estimate: about 7 h of hand-merging. Run steps 1–2 for all 10 projects. InstaReels gets a worktree cut from `main`. Then delete the branches and worktrees again.
   Done when: the Verification log has one row per project with its status counts and every "locally modified" and "removed upstream" path, and an effort estimate for each project. `git -C <P> branch --list chore/template-v3` is empty for all 10, and each main checkout's branch and `HEAD` are unchanged. No files changed outside `task_plan.md`.
-- [ ] **T1 — portfolio** (pilot). The settings diff gets extra care: this is the first real use of the round-1 settings-merge fix (6fcbc6c). If the method has to change, amend this plan before T2.
+- [x] **T1 — portfolio** (pilot). The settings diff gets extra care: this is the first real use of the round-1 settings-merge fix (6fcbc6c). If the method has to change, amend this plan before T2.
 - [ ] **T2 — Lemqes.** Settings: keep only the hooks it wants. Its develop wires done-gate, sync-codex-on-edit and validate-code. Ask the owner about repo-guard, session-guard and skill-nudge.
 - [ ] **T3 — AllaghenBrand.** Its hand-merged done-gate parts move to `hooks/local` or env (`DONE_GATE_ENV_PROBE`/`_PORT`). Keep `DONE_GATE_MODE=manual`.
 - [ ] **T4 — StoreCoreTemplate.** Customised hooks. The WordPress gates run from the main checkout after the merge (Done-when 2).
@@ -117,7 +117,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
   - (c) `docs/template-files.md`: make `.gitattributes` project-owned (owner yes, 2026-11-25).
   - (d) `scripts/test-hooks.sh` ships to projects, but its ownership audit fails there. Skip that audit when the repo isn't the template.
 
-  Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner. Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner.
+  Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner.
   Done when: each follow-up line in the Verification log is either linked to a commit or marked deferred by the owner. The template's `bash scripts/test-hooks.sh` reports `failed: 0`. No files changed outside the template repo.
 - [ ] **T12 — Push (owner decision).** Ask once, listing the 9 pushable projects and their `develop` heads. On a yes, push each one and remove `/mnt/disque-d/Develope/_v3-rollout`.
   Done when: for every pushed project, `git -C <P> log origin/develop -1` equals the local `develop`; the folder is gone; no other files changed.
@@ -125,7 +125,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
 ## Verification log
 | Project | Dry run (new / updated / locally modified / removed) | Settings hooks kept/dropped | Gates | Review | Merged |
 |---|---|---|---|---|---|
-| portfolio | T0: 17 / 16 / 6 / 2 · est. 20 min. T1: d02845c (34 applied). Kept with the owner's yes: skill-nudge.sh (v3 plus `*/template/*.html`) and .gitattributes (v3 plus text=auto and a binary list). workflow.md's 2 lines moved to `local-gates.md`. llm-council copies deleted. Re-run of the dry run: `no changes` apart from those 2 | +delegate-guard (×2 matchers), +4 adb read-only perms, +autoCompactWindow; nothing dropped | done-gate: rc 0, silent, 0 `run_gate` (no stack gate). Tier full = pytest: **NOT RUN**, scratch-venv install denied by the permission system | sonnet: approve. Coverage-loss warning rebutted: test-hooks.sh can't run in projects, so both cases go upstream in T11. Wording nit skipped | no |
+| portfolio | T0: 17 / 16 / 6 / 2 · est. 20 min. T1: d02845c (34 applied). Kept with the owner's yes: skill-nudge.sh (v3 plus `*/template/*.html`) and .gitattributes (v3 plus text=auto and a binary list). workflow.md's 2 lines moved to `local-gates.md`. llm-council copies deleted. Re-run of the dry run: `no changes` apart from those 2 | +delegate-guard (×2 matchers), +4 adb read-only perms, +autoCompactWindow; nothing dropped | done-gate: rc 0, silent, 0 `run_gate` (no stack gate). Tier full = `pytest -m "not launch"` (scratch venv): 535 passed, 0 failed; 8 `launch` tests NOT RUN (they need real user input) | sonnet: approve. Coverage-loss warning rebutted: test-hooks.sh can't run in projects, so both cases go upstream in T11. Wording nit skipped | b67cbf5 (--no-ff; branch was develop before and after); worktree removed |
 | Lemqes | T0: 24 / 19 / 0 / 2 · est. 15 min | T0: +delegate-guard, +repo/session-guard, +skill-nudge (decide) | | | |
 | AllaghenBrand | T0: 19 / 15 / 6 / 2 · est. 45 min | T0: +delegate-guard | | | |
 | StoreCoreTemplate | T0: 16 / 8 / 4 / 0 · est. 30 min | T0: +delegate-guard | | | |
