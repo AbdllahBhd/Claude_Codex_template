@@ -71,7 +71,7 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
     if [ "$LEVEL" -gt "${LAST:--1}" ]; then
       put ctx_level "$LEVEL"
       MSG="$MSG
-- Context is about $((CTX / 1000))k tokens: every message now re-reads all of it. (a) Tell the user in ONE line and recommend a fresh session. (b) As soon as the current step is done (not mid-step), write a ready-to-paste handoff prompt to docs/handoff.md (overwrite it; format: reporting.md, Handoff prompt) and show it to the user in a code block."
+- Context is about $((CTX / 1000))k tokens: every message now re-reads all of it. Tell the user in ONE line, then finish the current step, then write a ready-to-paste handoff prompt to docs/handoff.md (overwrite it; format: reporting.md, Handoff prompt), show it in a code block and tell the user to start a fresh session — do not start a new step."
     fi
   fi
 fi

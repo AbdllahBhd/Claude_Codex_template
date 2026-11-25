@@ -133,6 +133,7 @@ usage 2000 148000
 OUT=$(sg); has "$OUT" "150k" && ok "150k context: warns (JSON-escaped path)" || bad "big context" "$OUT"
 has "$OUT" "docs/handoff.md" && ok "context warning asks for a handoff in docs/handoff.md" || bad "handoff path" "$OUT"
 if has "$OUT" "ONE short line, then continue"; then bad "wrapper contradicts handoff step" "$OUT"; else ok "wrapper does not cap the reply at one line"; fi
+{ has "$OUT" "finish the current step" && has "$OUT" "do not start a new step"; } && ok "context warning: finish the step, no new step" || bad "stop wording" "$OUT"
 OUT=$(sg); [ -z "$OUT" ] && ok "same level: warns only once" || bad "repeat warning" "$OUT"
 usage 2000 300000
 OUT=$(sg); has "$OUT" "302k" && ok "next step (+150k): warns again" || bad "step warning" "$OUT"
@@ -162,6 +163,10 @@ OUT=$(tg tb4 env TEMPLATE_DIR="$TD"); [ -z "$OUT" ] && ok "stamp commit unknown 
 rm "$R/.claude/template-version"
 OUT=$(tg tb5 env TEMPLATE_DIR="$TD"); has "$OUT" "never synced" && ok "no stamp: never-synced notice" || bad "never synced" "$OUT"
 OUT=$(tg tb6 env TEMPLATE_DIR="/nonexistent/x"); [ -z "$OUT" ] && ok "unreadable TEMPLATE_DIR: silent" || bad "bad dir" "$OUT"
+
+echo "== v3 context cap in settings.json"
+python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d.get("autoCompactWindow")==300000, d.get("autoCompactWindow")' "$TEMPLATE/.claude/settings.json" 2>/dev/null \
+  && ok "settings.json is valid JSON with autoCompactWindow=300000" || bad "autoCompactWindow"
 
 echo "== T9 repo-guard"
 R=$(new_repo); O=$(new_repo); O2=$(new_repo)

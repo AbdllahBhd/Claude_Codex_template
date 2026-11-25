@@ -81,6 +81,10 @@ user must interrogate before deciding is a failed suggestion.
 
 ## Handoff prompt (when `session-guard` warns on context size, or on request)
 
+On a context warning: finish the current step, write the handoff, tell the
+user to start a fresh session — do not start a new step. Sessions also
+auto-compact at ~300k (`autoCompactWindow` in settings.json) instead of ~967k.
+
 Overwrite `docs/handoff.md` (git-ignored: local, per-session state — never
 committed, so it never conflicts across machines) with a prompt a session that has seen NOTHING can
 act on, and show it in a code block. Concrete names only — no "as discussed":
