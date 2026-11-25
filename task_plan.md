@@ -43,7 +43,7 @@
 - [x] **T9 — `scripts/android-emu.sh up|down|status`.** `up`: `setsid nohup emulator -avd "$AVD" -no-snapshot-save -no-audio [${EMU_HEADLESS:+-no-window}] </dev/null >log 2>&1 &`; bounded wait (`timeout 240 adb wait-for-device` + `sys.boot_completed` loop); free-space check on /data with `-wipe-data` advice. `down`: stop emulator + gradle daemon. `status`: device, boot state, free RAM, heavy processes.
   Done when: (1) cases with fake `adb`/`emulator` on PATH: `up` returns 0 when getprop flips to 1, exit 1 with a message after the (test-shortened) timeout; low /data → advice printed; `down` calls `adb emu kill`; (2) suite green + `bash -n`; (3) fence: the script, `scripts/test-hooks.sh`, `README.md`, `docs/template-files.md`, `task_plan.md`.
 
-- [ ] **T10 — `scripts/android-ui.sh`.** `dump | tap "<text>" | wait-for "<text>" [secs] | shot <file> | type <s> | key <k> | swipe | back`, via `uiautomator dump` + `exec-out screencap`, `ADB_SERIAL` overridable. `wait-for` polls the dump (no blind `sleep`) and names an ANR dialog if one appears.
+- [x] **T10 — `scripts/android-ui.sh`.** `dump | tap "<text>" | wait-for "<text>" [secs] | shot <file> | type <s> | key <k> | swipe | back`, via `uiautomator dump` + `exec-out screencap`, `ADB_SERIAL` overridable. `wait-for` polls the dump (no blind `sleep`) and names an ANR dialog if one appears.
   Done when: (1) cases with fake `adb` + fixture dumps: `tap "Save"` sends `input tap` at the bounds centre; `wait-for` → 0 when text appears, 1 on timeout, prints "ANR" on the ANR fixture; (2) suite green + `bash -n`; (3) fence: the script, `scripts/fixtures/`, `scripts/test-hooks.sh`, `README.md`, `docs/template-files.md`, `task_plan.md`.
   Optional, separate: one live smoke on this machine (`android-emu.sh up` → `android-ui.sh wait-for` launcher text → `shot` → `down`) only with the owner's go-ahead (emulator loads the NVMe); recorded in the Verification log.
 
@@ -74,7 +74,8 @@
 | T6 wording + autoCompactWindow cases: 2 red → green | b87ebf8 | 77 passed, 0 failed |
 | T7 /next cases: 4 red → green; sonnet dry run in a scratch clone: presented one decision (blocker first), wrote git-ignored `docs/handoff.md` ("# Handoff — T7 `/next` command…"), no branch, stopped. Its 2 gaps fixed: no local `develop` → `origin/develop`; half-done task → "finish task N" | 222bd98 | 81 passed, 0 failed |
 | T8 delegate-guard: 12 cases (9 hook + wiring + 2 cap greps) red → green | b915afc | 95 passed, 0 failed |
-| T9 android-emu: 6 cases (fake adb/emulator: boot, timeout, low /data, down, status) red → green; `bash -n` ok | T9 | 101 passed, 0 failed |
+| T9 android-emu: 6 cases (fake adb/emulator: boot, timeout, low /data, down, status) red → green; `bash -n` ok | 0a1c1fc | 101 passed, 0 failed |
+| T10 android-ui: 11 cases (fake adb + 3 fixture dumps: tap centre/content-desc/missing, wait-for appear/timeout/ANR, shot, type, back, ADB_SERIAL) red → green; `bash -n` ok. Live emulator smoke NOT run (needs owner go-ahead) | T10 | 112 passed, 0 failed |
 | Plan review (fresh-context subagent) | draft 1 | 15 findings (2 critical, 8 major, 5 minor) — all adopted in this version |
 
 ## Risks & open questions

@@ -321,6 +321,45 @@ FAKE
   pkill -f "$FA/emulator" 2>/dev/null
 fi
 
+echo "== v3 android-ui"
+UI="$TEMPLATE/scripts/android-ui.sh"; FX="$TEMPLATE/scripts/fixtures"
+if [ ! -f "$UI" ]; then bad "scripts/android-ui.sh exists"
+else
+  bash -n "$UI" && ok "bash -n android-ui.sh" || bad "bash -n android-ui.sh"
+  FU=$(mktemp -d)
+  # fake adb: logs args; `exec-out cat` serves the Nth file of $FAKE_DUMPS (last one repeats)
+  cat >"$FU/adb" <<'FAKE'
+#!/usr/bin/env bash
+echo "$*" >>"$FAKE_DIR/adb.log"
+case "$*" in
+  *exec-out\ cat*) n=$(( $(cat "$FAKE_DIR/n" 2>/dev/null || echo 0) + 1 )); echo $n >"$FAKE_DIR/n"
+    set -- $FAKE_DUMPS; [ "$n" -gt $# ] && n=$#; eval "cat \"\${$n}\"" ;;
+  *screencap*) printf 'PNGDATA' ;;
+esac
+exit 0
+FAKE
+  chmod +x "$FU/adb"
+  ui() { rm -f "$FU/n" "$FU/adb.log"; env PATH="$FU:$PATH" FAKE_DIR="$FU" UI_POLL=0.1 FAKE_DUMPS="$1" bash "$UI" "${@:2}" 2>&1; }
+  OUT=$(ui "$FX/ui-form.xml" tap "Save"); RC=$?
+  [ $RC -eq 0 ] && grep -q 'input tap 300 1100' "$FU/adb.log" && ok "tap \"Save\" taps the bounds centre" || bad "tap" "rc=$RC $OUT $(cat "$FU/adb.log")"
+  OUT=$(ui "$FX/ui-home.xml" tap "Add note"); RC=$?
+  grep -q 'input tap 960 2180' "$FU/adb.log" && ok "tap matches content-desc too" || bad "tap desc" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-home.xml" tap "Nope"); RC=$?
+  [ $RC -eq 1 ] && ! grep -q 'input tap' "$FU/adb.log" && ok "tap on missing text: exit 1, no tap" || bad "tap missing" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-home.xml $FX/ui-home.xml $FX/ui-form.xml" wait-for "Save" 5); RC=$?
+  [ $RC -eq 0 ] && ok "wait-for: 0 when the text appears" || bad "wait-for appears" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-home.xml" wait-for "Save" 1); RC=$?
+  [ $RC -eq 1 ] && has "$OUT" "Save" && ok "wait-for: 1 on timeout" || bad "wait-for timeout" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-anr.xml" wait-for "Save" 5); RC=$?
+  [ $RC -ne 0 ] && has "$OUT" "ANR" && has "$OUT" "Notes isn't responding" && ok "wait-for names an ANR dialog" || bad "wait-for ANR" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-home.xml" shot "$FU/s.png"); RC=$?
+  [ "$(cat "$FU/s.png" 2>/dev/null)" = PNGDATA ] && grep -q 'exec-out screencap -p' "$FU/adb.log" && ok "shot writes exec-out screencap" || bad "shot" "rc=$RC $OUT"
+  OUT=$(ui "$FX/ui-home.xml" type "hello world"); grep -q 'input text hello%sworld' "$FU/adb.log" && ok "type escapes spaces" || bad "type" "$(cat "$FU/adb.log")"
+  OUT=$(ui "$FX/ui-home.xml" back); grep -q 'input keyevent 4' "$FU/adb.log" && ok "back sends keyevent 4" || bad "back"
+  OUT=$(env ADB_SERIAL=emulator-5556 PATH="$FU:$PATH" FAKE_DIR="$FU" bash "$UI" key 66 2>&1; cat "$FU/adb.log")
+  has "$OUT" "-s emulator-5556 shell input keyevent 66" && ok "ADB_SERIAL is passed to adb" || bad "serial" "$OUT"
+fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

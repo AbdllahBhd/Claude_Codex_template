@@ -551,6 +551,10 @@ Ready-made, tested helpers, so sessions stop rewriting boot loops:
 bash scripts/android-emu.sh up       # boot $AVD, wait until really booted (no blind sleep)
 bash scripts/android-emu.sh status   # devices, boot state, free RAM, heaviest processes
 bash scripts/android-emu.sh down     # stop the emulator + Gradle daemon (do it at task end)
+bash scripts/android-ui.sh wait-for "Save" 30   # poll the UI dump (no sleep); names an ANR dialog
+bash scripts/android-ui.sh tap "Save"           # tap by text or content-desc, not coordinates
+bash scripts/android-ui.sh shot out.png         # screenshot, only to prove layout
+bash scripts/android-ui.sh dump                 # also: type "text" · key 66 · back · swipe
 ```
 
 `up` warns when `/data` is nearly full (installs fail) and says how to wipe it.
