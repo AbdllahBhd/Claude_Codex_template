@@ -162,7 +162,18 @@ elif [ -f pubspec.yaml ]; then
     # Exit 127 from `--which` = the pinned SDK is not on this machine: no code
     # change fixes that, so it is NOT RUN, not a block. A wrapper without
     # --which fails differently and is simply used.
-    WHICH=$(bash scripts/flutter.sh --which 2>&1); [ $? -eq 127 ] && { SDK_NOTE=$WHICH; FLUTTER=(); }
+    # On success it names the SDK, whose own dart runs pure-Dart members:
+    # `flutter test` cannot run tests that resolve package URIs (CI runs
+    # `dart test`).
+    WHICH=$(bash scripts/flutter.sh --which 2>&1)
+    case $? in
+      127) SDK_NOTE=$WHICH; FLUTTER=() ;;
+      0) W=${WHICH##*$'\n'}
+         if [ -x "$W" ]; then [ -x "$(dirname "$W")/dart" ] && DART=("$(dirname "$W")/dart")
+         elif [ "${W%% *}" = fvm ]; then DART=(fvm dart)
+         elif W=$(command -v "${W%% *}") && [ -x "$(dirname "$W")/dart" ]; then DART=("$(dirname "$W")/dart")
+         fi ;;
+    esac
   elif [ -f .fvmrc ]; then
     # Never fall back to a global SDK here: it rarely matches the pin.
     PIN=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc | head -1)
@@ -179,15 +190,15 @@ elif [ -f pubspec.yaml ]; then
   if [ -n "$SDK_NOTE" ]; then :
   elif [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
     # A pub workspace root analyzes nothing useful on its own: run each member,
-    # Flutter members (and every member when only the pinned wrapper exists)
-    # with flutter, pure Dart members with dart.
+    # Flutter members (and every member when no pinned dart is known) with
+    # flutter, pure Dart members with dart (--fatal-infos, as flutter analyze).
     for m in $MEMBERS; do
       [ -d "$m" ] || continue
       if [ ${#FLUTTER[@]} -gt 0 ] && { [ ${#DART[@]} -eq 0 ] || grep -qE 'sdk:[[:space:]]*flutter' "$m/pubspec.yaml" 2>/dev/null; }; then
         run_gate "analyze ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" analyze --no-pub
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" test
       else
-        run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze
+        run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze --fatal-infos
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${DART[@]}" test
       fi
     done
@@ -195,7 +206,7 @@ elif [ -f pubspec.yaml ]; then
     run_gate "analyze" "${FLUTTER[@]}" analyze --no-pub
     full && run_gate "tests" "${FLUTTER[@]}" test
   elif [ ${#DART[@]} -gt 0 ]; then
-    run_gate "analyze" "${DART[@]}" analyze
+    run_gate "analyze" "${DART[@]}" analyze --fatal-infos
   fi
 fi
 

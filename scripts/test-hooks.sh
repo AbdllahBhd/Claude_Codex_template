@@ -514,6 +514,17 @@ grep -q '^cache-flutter analyze' "$FL" && ! grep -q '^global-flutter' "$FL" && o
 OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$(mktemp -d)" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ! grep -q '^global-flutter' "$FL" && ok "pin not installed: NOT RUN, never the global flutter" || bad "unpinned sdk" "rc=$RC $OUT $(cat "$FL")"
 
+echo "== v3 done-gate wrapper SDK's dart for pure-Dart members"
+: >"$FL"; W=$(new_repo); mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.47.5"}' >"$W/.fvmrc"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - apps/web\n' >"$W/pubspec.yaml"
+printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"
+printf 'name: web\nresolution: workspace\ndependencies:\n  flutter:\n    sdk: flutter\n' >"$W/apps/web/pubspec.yaml"
+printf '#!/usr/bin/env bash\n[ "$1" = --which ] && { echo "%s"; exit 0; }\necho "wrapper $(basename "$PWD") $*" >>"%s"\n' "$FC/versions/3.47.5/bin/flutter" "$FL" >"$W/scripts/flutter.sh"
+printf '#!/usr/bin/env bash\necho "cache-dart $(basename "$PWD") $*" >>"%s"\n' "$FL" >"$FC/versions/3.47.5/bin/dart"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+{ grep -q '^cache-dart core analyze --fatal-infos' "$FL" && grep -q '^cache-dart core test' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^wrapper core' "$FL" && ! grep -q '^dart ' "$FL"; } \
+  && ok "wrapper: pure-Dart member runs the pinned SDK's dart analyze --fatal-infos / dart test" || bad "wrapper dart" "rc=$RC $OUT $(cat "$FL")"
+
 echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
 R=$(new_repo); C=$(mktemp)
 touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
