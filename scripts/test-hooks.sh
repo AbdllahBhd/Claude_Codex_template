@@ -329,6 +329,13 @@ assert h["Stop"][0]["hooks"][0].get("timeout")==600, h["Stop"]
 g=[x for x in h["PreToolUse"][0]["hooks"] if x["command"].endswith("guard.sh")][0]
 assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
   [ -z "$E" ] && ok "--apply keeps a project's own field on a template hook (Stop timeout 600), takes the template's other changes" || bad "per-hook fields" "rc=$RC $E"
+  T4=$(new_repo); P4=$(new_repo); mkdir -p "$T4/docs" "$T4/.claude" "$P4/.claude"; cp "$TF" "$T4/docs/template-files.md"
+  echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":120}]}]}}' >"$T4/.claude/settings.json"
+  git -C "$T4" add -A && git -C "$T4" commit -qm one
+  echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":30}]}]}}' >"$P4/.claude/settings.json"
+  (cd "$P4" && bash "$SYNC" "$T4" --ref main --apply >/dev/null 2>&1)
+  python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["hooks"]["Stop"][0]["hooks"][0]["timeout"]==120' "$P4/.claude/settings.json" 2>/dev/null \
+    && ok "no base (first sync): template hook fields win" || bad "no-base field merge" "$(cat "$P4/.claude/settings.json")"
   # Per-project lists: .claude/template-exclude (never added) and .claude/template-keep (adapted, kept quietly).
   T3=$(new_repo); P3=$(new_repo); mkdir -p "$T3/docs" "$T3/.claude/agents" "$T3/.claude/commands" "$T3/.claude/rules"; cp "$TF" "$T3/docs/template-files.md"
   echo a >"$T3/.claude/agents/a.md"; echo b >"$T3/.claude/agents/b.md"; echo c >"$T3/.claude/commands/cx.md"; echo r >"$T3/.claude/rules/x.md"
