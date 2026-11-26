@@ -20,7 +20,7 @@ SKILL=""
 case "$FILE" in
   */test/*|*/tests/*|*.test.*|*.spec.*|*Test.php|*_test.dart|*/test_*.py|*_test.py|*/phpunit.xml*)
     SKILL="testing-patterns" ;;
-  *.tsx|*.jsx|*.vue|*.svelte|*.css|*.scss|*_screen.dart|*_page.dart|*/presentation/*|*/templates/*.html|*/parts/*.html|*/patterns/*.php|*/theme.json)
+  *.tsx|*.jsx|*.vue|*.svelte|*.css|*.scss|*_screen.dart|*_page.dart|*/presentation/*|*/templates/*.html|*/template/*.html|*/parts/*.html|*/patterns/*.php|*/theme.json)
     SKILL="ui-quality" ;;
 esac
 [ -z "$SKILL" ] && exit 0

@@ -193,6 +193,8 @@ OUT=$(printf '{"session_id":"s-win","tool_input":{"file_path":"%s"}}' 'D:\\proj\
 has "$OUT" testing-patterns && ok "JSON-escaped Windows path parsed (nudges)" || bad "win path" "$OUT"
 OUT=$(sn "$R/src/App.tsx"); [ -z "$OUT" ] && ok "skill not shipped: silent" || bad "missing skill" "$OUT"
 OUT=$(sn "$R/README.md"); [ -z "$OUT" ] && ok "other file: silent" || bad "other file" "$OUT"
+mkdir -p "$R/.claude/skills/ui-quality"; touch "$R/.claude/skills/ui-quality/SKILL.md"
+OUT=$(sn "$R/wp-content/themes/t/template/single.html"); has "$OUT" ui-quality && ok "*/template/*.html: nudges ui-quality" || bad "template html nudge" "$OUT"
 
 echo "== v3 file ownership"
 # Every tracked path must have an owner in docs/template-files.md (first match
