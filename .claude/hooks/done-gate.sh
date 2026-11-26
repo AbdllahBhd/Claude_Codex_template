@@ -138,10 +138,12 @@ has_npm_script() { [ -f package.json ] && grep -q "\"$1\"[[:space:]]*:" package.
 has_composer_script() { [ -f composer.json ] && grep -q "\"$1\"[[:space:]]*:" composer.json; }
 full() { [ "${DONE_GATE_FULL:-0}" = "1" ]; }
 in_dir() { local d=$1; shift; (cd "$d" && "$@"); }
-# Members listed under `workspace:` in pubspec.yaml (block list form).
+# Members listed under `workspace:` in pubspec.yaml (block list form; YAML
+# allows the `- item` lines at column 0, a trailing comment and CRLF).
 workspace_members() {
-  awk '/^workspace:/ {w=1; next} w && /^[^[:space:]#]/ {w=0}
-       w && /^[[:space:]]*-/ {sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["\047]/, ""); print}' pubspec.yaml
+  awk '{sub(/\r$/, "")} /^workspace:/ {w=1; next} w && /^[^[:space:]#-]/ {w=0}
+       w && /^[[:space:]]*-/ {sub(/^[[:space:]]*-[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, "")
+                              gsub(/["\047]/, ""); sub(/[[:space:]]+$/, ""); print}' pubspec.yaml
 }
 
 if [ -n "${DONE_GATE_CMD:-}" ]; then
@@ -193,7 +195,11 @@ elif [ -f pubspec.yaml ]; then
     # Flutter members (and every member when no pinned dart is known) with
     # flutter, pure Dart members with dart (--fatal-infos, as flutter analyze).
     for m in $MEMBERS; do
-      [ -d "$m" ] || continue
+      if [ ! -d "$m" ]; then   # pub would fail on it too: never skip silently
+        RAN="$RAN member-$m"
+        CODE_FAILURES="${CODE_FAILURES}${NL}--- workspace member $m is listed in pubspec.yaml but missing ---"
+        continue
+      fi
       if [ ${#FLUTTER[@]} -gt 0 ] && { [ ${#DART[@]} -eq 0 ] || grep -qE 'sdk:[[:space:]]*flutter' "$m/pubspec.yaml" 2>/dev/null; }; then
         run_gate "analyze ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" analyze --no-pub
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" test

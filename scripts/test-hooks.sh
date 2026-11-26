@@ -525,6 +525,18 @@ OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:
 { grep -q '^cache-dart core analyze --fatal-infos' "$FL" && grep -q '^cache-dart core test' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^wrapper core' "$FL" && ! grep -q '^dart ' "$FL"; } \
   && ok "wrapper: pure-Dart member runs the pinned SDK's dart analyze --fatal-infos / dart test" || bad "wrapper dart" "rc=$RC $OUT $(cat "$FL")"
 
+echo "== v3 done-gate workspace_members parsing"
+: >"$FL"; printf '#!/usr/bin/env bash\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
+W=$(new_repo); mkdir -p "$W/packages/core" "$W/apps/web"
+printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
+printf 'name: ws\r\nworkspace:\r\n- packages/core   # the engine\r\n- "apps/web"\r\ndev_dependencies:\r\n  lints: ^5.0.0\r\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+{ grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && [ "$(wc -l <"$FL")" -eq 2 ]; } \
+  && ok "column-0 items, trailing comments, CRLF: every member found" || bad "members parse" "rc=$RC $OUT $(cat "$FL")"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - packages/gone\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "packages/gone" && ok "listed member missing on disk blocks" || bad "missing member" "rc=$RC $OUT"
+
 echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
 R=$(new_repo); C=$(mktemp)
 touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
