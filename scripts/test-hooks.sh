@@ -51,6 +51,16 @@ OUT=$(cd "$R/sub/deeper" && printf '{"tool_input":{"file_path":"%s"}}' "$R/sub/l
   | CLAUDE_PROJECT_DIR="$R" bash -c "$(wired_cmd sync-codex-on-edit.sh)" >/dev/null 2>&1)
 [ -f "$R/.synced" ] && ok "sync-codex-on-edit really ran the sync from a subfolder" || bad "sync did not run"
 
+echo "== v3 validate-code debug notes"
+R=$(new_repo)
+vc() { printf '{"tool_input":{"file_path":"%s"}}' "$1" | bash "$HOOKS/validate-code.sh" 2>&1; }
+printf 'void main() {\n  print("x");\n  debugPrint("y");\n}\n' >"$R/a.dart"
+OUT=$(vc "$R/a.dart"); has "$OUT" "print" && ok "Dart bare print( noted" || bad "dart print" "$OUT"
+printf 'void main() {\n  debugPrint("y");\n}\n' >"$R/b.dart"
+OUT=$(vc "$R/b.dart"); [ -z "$OUT" ] && ok "Dart debugPrint alone: silent" || bad "dart debugPrint" "$OUT"
+printf 'export const a = 1;\nconsole.log(a);\n' >"$R/c.mjs"
+OUT=$(vc "$R/c.mjs"); has "$OUT" "console.log" && ok "*.mjs console.log noted" || bad "mjs" "$OUT"
+
 echo "== T2 done-gate"
 R=$(new_repo); C=$(mktemp)
 gate() { (cd "$R/sub" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" "$@" bash "$HOOKS/done-gate.sh" 2>&1); }

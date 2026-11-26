@@ -31,7 +31,7 @@ fi
 
 # --- Check 2: warn on debug leftovers (non-blocking) ------------------------
 case "$FILE_PATH" in
-  *.ts|*.tsx|*.js|*.jsx)
+  *.ts|*.tsx|*.js|*.jsx|*.mjs)
     if grep -nE '^\s*(console\.log|debugger)\b' "$FILE_PATH" >/dev/null 2>&1; then
       echo "note: $FILE_PATH contains console.log/debugger statements — remove before committing."
     fi
@@ -39,6 +39,11 @@ case "$FILE_PATH" in
   *.py)
     if grep -nE '^\s*(print\(|breakpoint\(\)|import pdb)' "$FILE_PATH" >/dev/null 2>&1; then
       echo "note: $FILE_PATH contains print/breakpoint debug statements — remove before committing."
+    fi
+    ;;
+  *.dart)
+    if grep -nE '^\s*print\(' "$FILE_PATH" >/dev/null 2>&1; then
+      echo "note: $FILE_PATH contains bare print( calls — remove them or use debugPrint/a logger before committing."
     fi
     ;;
 esac
