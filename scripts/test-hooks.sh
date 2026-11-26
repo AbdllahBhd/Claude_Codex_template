@@ -109,6 +109,9 @@ OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo 'Error: spawn docker ENOENT'; exit
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "spawn docker ENOENT, docker absent -> NOT RUN" || bad "ENOENT" "rc=$RC $OUT"
 OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo \"The command 'docker' could not be found in this WSL 2 distro.\"; exit 1"); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "docker missing in WSL -> NOT RUN" || bad "WSL docker" "rc=$RC $OUT"
+echo "c5" >>"$R/file.txt"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo 'Error: The environment has not yet been initialized. Run wp-env start'; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "wp-env 'has not yet been initialized' -> NOT RUN" || bad "wp-env init" "rc=$RC $OUT"
 mkdir -p "$R/.claude/hooks/local"
 printf 'echo "local/extra.sh:1 error: project rule broken"; exit 1\n' >"$R/.claude/hooks/local/extra.sh"
 OUT=$(gate env DONE_GATE_CMD="exit 0"); RC=$?
