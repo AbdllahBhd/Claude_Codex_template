@@ -22,6 +22,8 @@ The first matching row wins (`*` also matches `/`). Keep specific rows above glo
 | `.claude/settings.json` | merged | template: hooks, permissions · project: env |
 | `.claude/settings.local.json` | project | git-ignored, machine-local |
 | `.claude/template-version` | project | written by sync-template.sh |
+| `.claude/template-exclude` | project | template paths sync-template never adds |
+| `.claude/template-keep` | project | adapted template files kept on purpose |
 | `.claude/gate-core-paths` | project | |
 | `.claude/gate-core-paths.example` | template | |
 | `.claude/launch.json` | project | |
@@ -38,7 +40,7 @@ The first matching row wins (`*` also matches `/`). Keep specific rows above glo
 | `docs/*` | project | |
 | `AGENTS.md` | template | pointer to CLAUDE.md |
 | `CATALOG.md` | template | |
-| `.gitattributes` | template | |
+| `.gitattributes` | project | line endings and binary types differ per stack (owner 2026-11-25) |
 | `CLAUDE.md` | project | |
 | `CLAUDE.local.md` | project | git-ignored |
 | `README.md` | project | the template's README becomes the project's |

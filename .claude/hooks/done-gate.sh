@@ -9,8 +9,9 @@
 #   - When the ENVIRONMENT is down (Docker, wp-env, UNC paths), it does NOT
 #     block: it reports "NOT RUN" to the user instead of sending Claude off
 #     to repair containers.
-#   - Flutter/Dart: `.fvmrc` → `scripts/flutter.sh` if present, else `fvm
-#     flutter`/`fvm dart`; a pub workspace root analyzes each member package.
+#   - Flutter/Dart: `.fvmrc` → `scripts/flutter.sh` if present, else the FVM
+#     cache (`${FVM_CACHE_PATH:-~/fvm}/versions/<pin>`), else `fvm`; never an
+#     unpinned SDK (NOT RUN). A pub workspace root analyzes each member package.
 #
 # Configuration (env vars, e.g. in .claude/settings.json "env"):
 #   DONE_GATE_MODE=manual   owner runs gates by hand (localhost-first projects)
@@ -35,10 +36,6 @@ INPUT=$(cat)
 [ "${DONE_GATE_MODE:-auto}" = "manual" ] && exit 0
 printf '%s' "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exit 0
 
-# Run from the project root no matter where Claude cd'ed to.
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-cd "$ROOT" 2>/dev/null || exit 0
-
 # Message shown to the USER only — does not make Claude take another turn.
 # Any text is escaped (backslash first) so a captured multi-line log cannot
 # make the JSON invalid — Claude Code drops an invalid notice silently.
@@ -48,6 +45,12 @@ user_note() {
   m=$(printf '%s' "$m" | tr -d '\000-\010\013\014\016-\037\177')
   printf '{"systemMessage":"%s"}\n' "$m"
 }
+
+# Run from the project root no matter where Claude cd'ed to. A wrong
+# CLAUDE_PROJECT_DIR would otherwise disable every gate without a word; Claude
+# cannot fix the variable, so tell the user instead of blocking.
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+cd "$ROOT" 2>/dev/null || { user_note "done-gate: NOT RUN — cannot enter the project directory $ROOT (check CLAUDE_PROJECT_DIR)."; exit 0; }
 
 # UNC working directory (\\wsl.localhost\... opened from Windows): npm spawns
 # CMD.EXE, which cannot use UNC paths — every gate would fail falsely.
@@ -80,14 +83,15 @@ NL=$'\n'
 CODE_FAILURES=""
 ENV_FAILURES=""
 ENV_DETAIL=""
+SDK_NOTE=""
 RAN=""
 
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
 # counts as environment-down only if (a) it matches, (b) the log shows no code
 # error markers, and (c) the environment probe confirms it is down.
-ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
+ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|connect ENOENT [^ ]*docker\.sock|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|[Ee]nvironment has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
 # Markers of real code findings (tsc, eslint, phpcs, phpunit, dart, pytest...).
-CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^(error|ERROR) [•-] '
+CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^ *(error|ERROR|warning|info) [•-] |Some tests failed'
 
 # Is the environment UP? Default: Docker answers and has running containers.
 # DONE_GATE_ENV_PORT narrows it to this project's container; DONE_GATE_ENV_PROBE
@@ -117,12 +121,17 @@ run_gate() { # $1 = label, rest = command
   local label=$1; shift
   local log="$LOGDIR/${label// /_}.log"
   RAN="$RAN $label"
-  if ! "$@" >"$log" 2>&1; then
+  # </dev/null: a prompting tool (fvm install?) must neither hang the stop nor
+  # read the workspace-member list the caller loops over.
+  if ! "$@" >"$log" 2>&1 </dev/null; then
     if env_down_failure "$log"; then
       ENV_FAILURES="$ENV_FAILURES $label"
       [ -z "$ENV_DETAIL" ] && ENV_DETAIL=$(tail -3 "$log")
     else
-      CODE_FAILURES="${CODE_FAILURES}${NL}--- $label FAILED ($*) ---${NL}$(tail -30 "$log")"
+      # A local gate often bundles several checks; 30 lines would cut the
+      # labels of the earliest failing ones.
+      local keep=30; [[ $label == local-* ]] && keep=100
+      CODE_FAILURES="${CODE_FAILURES}${NL}--- $label FAILED ($*) ---${NL}$(tail -"$keep" "$log")"
     fi
   fi
 }
@@ -131,10 +140,12 @@ has_npm_script() { [ -f package.json ] && grep -q "\"$1\"[[:space:]]*:" package.
 has_composer_script() { [ -f composer.json ] && grep -q "\"$1\"[[:space:]]*:" composer.json; }
 full() { [ "${DONE_GATE_FULL:-0}" = "1" ]; }
 in_dir() { local d=$1; shift; (cd "$d" && "$@"); }
-# Members listed under `workspace:` in pubspec.yaml (block list form).
+# Members listed under `workspace:` in pubspec.yaml (block list form; YAML
+# allows the `- item` lines at column 0, a trailing comment and CRLF).
 workspace_members() {
-  awk '/^workspace:/ {w=1; next} w && /^[^[:space:]#]/ {w=0}
-       w && /^[[:space:]]*-/ {sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["\047]/, ""); print}' pubspec.yaml
+  awk '{sub(/\r$/, "")} /^workspace:/ {w=1; next} w && /^[^[:space:]#-]/ {w=0}
+       w && /^[[:space:]]*-/ {sub(/^[[:space:]]*-[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, "")
+                              gsub(/["\047]/, ""); sub(/[[:space:]]+$/, ""); print}' pubspec.yaml
 }
 
 if [ -n "${DONE_GATE_CMD:-}" ]; then
@@ -150,32 +161,61 @@ elif [ -f pubspec.yaml ]; then
   # FVM-pinned projects must not run the global SDK; a project wrapper wins.
   # Arrays + absolute wrapper path: members run from their own directory.
   FLUTTER=(); DART=()
-  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then FLUTTER=(bash "$PWD/scripts/flutter.sh")
-  elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
+  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then
+    FLUTTER=(bash "$PWD/scripts/flutter.sh")
+    # Exit 127 from `--which` = the pinned SDK is not on this machine: no code
+    # change fixes that, so it is NOT RUN, not a block. A wrapper without
+    # --which fails differently and is simply used.
+    # On success its last line names the flutter binary (or `fvm flutter`),
+    # whose own dart runs pure-Dart members: `flutter test` cannot run tests
+    # that resolve package URIs (CI runs `dart test`).
+    WHICH=$(bash scripts/flutter.sh --which 2>&1)
+    case $? in
+      127) SDK_NOTE=$WHICH; FLUTTER=() ;;
+      0) W=${WHICH##*$'\n'}
+         if [ -f "$W" ] && [ -x "$W" ]; then [ -x "$(dirname "$W")/dart" ] && DART=("$(dirname "$W")/dart")
+         elif [ "${W%% *}" = fvm ]; then DART=(fvm dart)
+         elif W=$(command -v "${W%% *}") && [ -x "$(dirname "$W")/dart" ]; then DART=("$(dirname "$W")/dart")
+         fi ;;
+    esac
+  elif [ -f .fvmrc ]; then
+    # Never fall back to a global SDK here: it rarely matches the pin. A cache
+    # moved with `fvm config --cache-path` is found only via fvm or FVM_CACHE_PATH.
+    PIN=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc | head -1)
+    SDK="${FVM_CACHE_PATH:-$HOME/fvm}/versions/$PIN/bin"
+    if [ -n "$PIN" ] && [ -x "$SDK/flutter" ]; then FLUTTER=("$SDK/flutter"); [ -x "$SDK/dart" ] && DART=("$SDK/dart")
+    elif command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
+    else SDK_NOTE="Flutter ${PIN:-?} pinned in .fvmrc is not in ${SDK%/bin} and fvm is not on PATH"
+    fi
   elif command -v flutter >/dev/null 2>&1; then FLUTTER=(flutter)
   fi
-  # The wrapper pins dart too: never pair it with the global dart.
-  [ ${#DART[@]} -eq 0 ] && [ "${FLUTTER[0]:-}" != bash ] && command -v dart >/dev/null 2>&1 && DART=(dart)
+  # A pinned SDK pins dart too: never pair it with the global dart.
+  [ ! -f .fvmrc ] && [ ${#DART[@]} -eq 0 ] && command -v dart >/dev/null 2>&1 && DART=(dart)
   MEMBERS=$(workspace_members)
-  if [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
+  if [ -n "$SDK_NOTE" ]; then :
+  elif [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
     # A pub workspace root analyzes nothing useful on its own: run each member,
-    # Flutter members (and every member when only the pinned wrapper exists)
-    # with flutter, pure Dart members with dart.
-    for m in $MEMBERS; do
-      [ -d "$m" ] || continue
+    # Flutter members (and every member when no pinned dart is known) with
+    # flutter, pure Dart members with dart (--fatal-infos, as flutter analyze).
+    while IFS= read -r m; do
+      if [ ! -d "$m" ]; then   # pub would fail on it too: never skip silently
+        RAN="$RAN member-$m"
+        CODE_FAILURES="${CODE_FAILURES}${NL}--- workspace member $m is listed in pubspec.yaml but missing ---"
+        continue
+      fi
       if [ ${#FLUTTER[@]} -gt 0 ] && { [ ${#DART[@]} -eq 0 ] || grep -qE 'sdk:[[:space:]]*flutter' "$m/pubspec.yaml" 2>/dev/null; }; then
         run_gate "analyze ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" analyze --no-pub
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${FLUTTER[@]}" test
       else
-        run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze
+        run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze --fatal-infos
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${DART[@]}" test
       fi
-    done
+    done <<<"$MEMBERS"
   elif [ ${#FLUTTER[@]} -gt 0 ]; then
     run_gate "analyze" "${FLUTTER[@]}" analyze --no-pub
     full && run_gate "tests" "${FLUTTER[@]}" test
   elif [ ${#DART[@]} -gt 0 ]; then
-    run_gate "analyze" "${DART[@]}" analyze
+    run_gate "analyze" "${DART[@]}" analyze --fatal-infos
   fi
 fi
 
@@ -184,7 +224,7 @@ for f in .claude/hooks/local/*.sh; do
   [ -f "$f" ] && run_gate "local-$(basename "$f" .sh)" bash "$f"
 done
 
-[ -z "$RAN" ] && exit 0   # no gate defined for this stack
+[ -z "$RAN" ] && [ -z "$SDK_NOTE" ] && exit 0   # no gate defined for this stack
 
 if [ -n "$CODE_FAILURES" ]; then
   printf 'DONE-GATE BLOCKED: quality gates failed on the code.\nFix these before finishing:%s\n' "$CODE_FAILURES" >&2
@@ -193,10 +233,10 @@ fi
 
 # NOT RUN goes to the user only (systemMessage): sending it to Claude would
 # force an extra turn on every stop while the environment stays down.
-if [ -n "$ENV_FAILURES" ]; then
-  user_note "done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging.${NL}${ENV_DETAIL}"
-  exit 0
-fi
+NOTE=""
+[ -n "$SDK_NOTE" ] && NOTE="done-gate: NOT RUN for Flutter — ${SDK_NOTE}. Run analyze/tests on a machine with the pinned SDK before merging."
+[ -n "$ENV_FAILURES" ] && NOTE="${NOTE:+$NOTE$NL}done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging.${NL}${ENV_DETAIL}"
+[ -n "$NOTE" ] && { user_note "$NOTE"; exit 0; }
 
 [ -n "$STAMP" ] && printf '%s' "$FINGERPRINT" >"$STAMP"
 exit 0

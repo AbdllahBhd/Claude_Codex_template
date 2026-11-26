@@ -51,6 +51,16 @@ OUT=$(cd "$R/sub/deeper" && printf '{"tool_input":{"file_path":"%s"}}' "$R/sub/l
   | CLAUDE_PROJECT_DIR="$R" bash -c "$(wired_cmd sync-codex-on-edit.sh)" >/dev/null 2>&1)
 [ -f "$R/.synced" ] && ok "sync-codex-on-edit really ran the sync from a subfolder" || bad "sync did not run"
 
+echo "== v3 validate-code debug notes"
+R=$(new_repo)
+vc() { printf '{"tool_input":{"file_path":"%s"}}' "$1" | bash "$HOOKS/validate-code.sh" 2>&1; }
+printf 'void main() {\n  print("x");\n  debugPrint("y");\n}\n' >"$R/a.dart"
+OUT=$(vc "$R/a.dart"); has "$OUT" "print" && ok "Dart bare print( noted" || bad "dart print" "$OUT"
+printf 'void main() {\n  debugPrint("y");\n}\n' >"$R/b.dart"
+OUT=$(vc "$R/b.dart"); [ -z "$OUT" ] && ok "Dart debugPrint alone: silent" || bad "dart debugPrint" "$OUT"
+printf 'export const a = 1;\nconsole.log(a);\n' >"$R/c.mjs"
+OUT=$(vc "$R/c.mjs"); has "$OUT" "console.log" && ok "*.mjs console.log noted" || bad "mjs" "$OUT"
+
 echo "== T2 done-gate"
 R=$(new_repo); C=$(mktemp)
 gate() { (cd "$R/sub" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" "$@" bash "$HOOKS/done-gate.sh" 2>&1); }
@@ -99,6 +109,13 @@ OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo 'Error: spawn docker ENOENT'; exit
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "spawn docker ENOENT, docker absent -> NOT RUN" || bad "ENOENT" "rc=$RC $OUT"
 OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo \"The command 'docker' could not be found in this WSL 2 distro.\"; exit 1"); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "docker missing in WSL -> NOT RUN" || bad "WSL docker" "rc=$RC $OUT"
+echo "c5" >>"$R/file.txt"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo 'Error: The environment has not yet been initialized. Run wp-env start'; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "wp-env 'has not yet been initialized' -> NOT RUN" || bad "wp-env init" "rc=$RC $OUT"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="printf '\033[1mFOUND 3 ERRORS AFFECTING 2 LINES\033[0m\nError: Environment not initialized\n'; exit 1"); RC=$?
+[ $RC -eq 2 ] && ok "ANSI-wrapped phpcs FOUND n ERRORS + env-down text still blocks" || bad "ansi phpcs" "rc=$RC $OUT"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo 'Error: connect ENOENT /var/run/docker.sock'; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "connect ENOENT docker.sock -> NOT RUN" || bad "docker.sock ENOENT" "rc=$RC $OUT"
 mkdir -p "$R/.claude/hooks/local"
 printf 'echo "local/extra.sh:1 error: project rule broken"; exit 1\n' >"$R/.claude/hooks/local/extra.sh"
 OUT=$(gate env DONE_GATE_CMD="exit 0"); RC=$?
@@ -110,6 +127,15 @@ OUT=$(gate env DONE_GATE_MODE=manual DONE_GATE_CMD="exit 1"); RC=$?
 [ $RC -eq 0 ] && ok "manual mode never blocks" || bad "manual" "rc=$RC"
 OUT=$(cd "$R" && echo '{"stop_hook_active":true}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 0 ] && ok "stop_hook_active prevents a loop" || bad "loop guard"
+R0=$(new_repo)
+OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && [ -z "$OUT" ] && ok "no stack and no DONE_GATE_CMD: silent pass" || bad "no stack" "rc=$RC $OUT"
+OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0/missing" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "systemMessage" && ok "unreachable project dir -> NOT RUN to the user, no block" || bad "bad ROOT" "rc=$RC $OUT"
+mkdir -p "$R0/.claude/hooks/local"
+printf 'echo "CHECK-A FAILED: stages"; for i in $(seq 1 40); do echo "a-detail $i"; done; echo "CHECK-B FAILED: unity"; exit 1\n' >"$R0/.claude/hooks/local/areas.sh"
+OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "CHECK-A FAILED" && has "$OUT" "CHECK-B FAILED" && ok "long local-* gate log keeps its first failure label" || bad "local tail" "rc=$RC $(printf '%s' "$OUT" | head -3)"
 if command -v npm >/dev/null 2>&1; then
   R2=$(new_repo)
   printf '{"name":"t","version":"1.0.0","scripts":{"lint":"node -e \\"console.log(String.fromCharCode(108)+\\x27int.js:2 error bad\\x27);process.exit(1)\\""}}\n' >"$R2/package.json"
@@ -193,20 +219,31 @@ OUT=$(printf '{"session_id":"s-win","tool_input":{"file_path":"%s"}}' 'D:\\proj\
 has "$OUT" testing-patterns && ok "JSON-escaped Windows path parsed (nudges)" || bad "win path" "$OUT"
 OUT=$(sn "$R/src/App.tsx"); [ -z "$OUT" ] && ok "skill not shipped: silent" || bad "missing skill" "$OUT"
 OUT=$(sn "$R/README.md"); [ -z "$OUT" ] && ok "other file: silent" || bad "other file" "$OUT"
+mkdir -p "$R/.claude/skills/ui-quality"; touch "$R/.claude/skills/ui-quality/SKILL.md"
+OUT=$(sn "$R/wp-content/themes/t/template/single.html"); has "$OUT" ui-quality && ok "*/template/*.html: nudges ui-quality" || bad "template html nudge" "$OUT"
 
 echo "== v3 file ownership"
 # Every tracked path must have an owner in docs/template-files.md (first match
-# wins); sync-template.sh relies on it to know what it may overwrite.
-TF="$TEMPLATE/docs/template-files.md"
-if [ -f "$TF" ]; then
-  GLOBS=$(sed -n 's/^| `\([^`]*\)` | \(template\|project\|merged\) |.*/\1/p' "$TF")
-  UNLISTED=""
+# wins); sync-template.sh relies on it to know what it may overwrite. A synced
+# project (stamped .claude/template-version) has its own files: skip there.
+ownership_audit() { # $1 = repo root; prints "skip", "" (all owned) or the unlisted paths
+  local root=$1 tf="$1/docs/template-files.md" globs unlisted="" f g hit
+  [ -f "$root/.claude/template-version" ] && { echo skip; return; }
+  [ -f "$tf" ] || { echo " (no docs/template-files.md)"; return; }
+  globs=$(sed -n 's/^| `\([^`]*\)` | \(template\|project\|merged\) |.*/\1/p' "$tf")
   while IFS= read -r f; do
-    hit=""; while IFS= read -r g; do [[ $f == $g ]] && { hit=1; break; }; done <<<"$GLOBS"
-    [ -z "$hit" ] && UNLISTED="$UNLISTED $f"
-  done < <(git -C "$TEMPLATE" ls-files)
-  [ -z "$UNLISTED" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$UNLISTED"
-else bad "docs/template-files.md exists"; fi
+    hit=""; while IFS= read -r g; do [[ $f == $g ]] && { hit=1; break; }; done <<<"$globs"
+    [ -z "$hit" ] && unlisted="$unlisted $f"
+  done < <(git -C "$root" ls-files)
+  echo "$unlisted"
+}
+TF="$TEMPLATE/docs/template-files.md"
+U=$(ownership_audit "$TEMPLATE")
+[ -z "$U" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$U"
+R=$(new_repo); mkdir -p "$R/docs" "$R/.claude"; cp "$TEMPLATE/docs/template-files.md" "$R/docs/"
+echo "commit x" >"$R/.claude/template-version"; touch "$R/app.unlisted"; git -C "$R" add -A; git -C "$R" commit -qm p
+U=$(ownership_audit "$R"); [ "$U" = skip ] && ok "ownership audit skipped in a synced project" || bad "audit in project" "$U"
+grep -q '^| `.gitattributes` | project |' "$TF" && ok ".gitattributes is project-owned" || bad ".gitattributes owner"
 
 echo "== v3 sync-template"
 SYNC="$TEMPLATE/scripts/sync-template.sh"
@@ -280,6 +317,44 @@ assert "Stop" in h, h' "$P2/.claude/settings.json" 2>&1)
   [ -z "$E" ] && ok "--apply merges hook groups per command: template guard and project local hook both kept" || bad "dict hook merge" "rc=$RC $E $OUT"
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["permissions"]["allow"]==["Bash(ls)"], d' "$P2/.claude/settings.json" \
     && ok "--apply drops an allow rule the template removed" || bad "template-removed rule kept" "$(cat "$P2/.claude/settings.json")"
+  git -C "$P2" add -A && git -C "$P2" commit -qm two
+  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["hooks"]["Stop"][0]["hooks"][0]["timeout"]=600; json.dump(d,open(p,"w"))' "$P2/.claude/settings.json"
+  git -C "$P2" commit -qam "own timeout"
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"bash .claude/hooks/guard.sh","timeout":30}]}],"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":300}]}]},"permissions":{"allow":["Bash(ls)"]}}' >"$T2/.claude/settings.json"
+  git -C "$T2" commit -qam three
+  OUT=$(cd "$P2" && bash "$SYNC" "$T2" --ref main --apply 2>&1); RC=$?
+  E=$(python3 -c '
+import json,sys; h=json.load(open(sys.argv[1]))["hooks"]
+assert h["Stop"][0]["hooks"][0].get("timeout")==600, h["Stop"]
+g=[x for x in h["PreToolUse"][0]["hooks"] if x["command"].endswith("guard.sh")][0]
+assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
+  [ -z "$E" ] && ok "--apply keeps a project's own field on a template hook (Stop timeout 600), takes the template's other changes" || bad "per-hook fields" "rc=$RC $E"
+  T4=$(new_repo); P4=$(new_repo); mkdir -p "$T4/docs" "$T4/.claude" "$P4/.claude"; cp "$TF" "$T4/docs/template-files.md"
+  echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":120}]}]}}' >"$T4/.claude/settings.json"
+  git -C "$T4" add -A && git -C "$T4" commit -qm one
+  echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":30}]}]}}' >"$P4/.claude/settings.json"
+  (cd "$P4" && bash "$SYNC" "$T4" --ref main --apply >/dev/null 2>&1)
+  python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["hooks"]["Stop"][0]["hooks"][0]["timeout"]==120' "$P4/.claude/settings.json" 2>/dev/null \
+    && ok "no base (first sync): template hook fields win" || bad "no-base field merge" "$(cat "$P4/.claude/settings.json")"
+  # Per-project lists: .claude/template-exclude (never added) and .claude/template-keep (adapted, kept quietly).
+  T3=$(new_repo); P3=$(new_repo); mkdir -p "$T3/docs" "$T3/.claude/agents" "$T3/.claude/commands" "$T3/.claude/rules"; cp "$TF" "$T3/docs/template-files.md"
+  echo a >"$T3/.claude/agents/a.md"; echo b >"$T3/.claude/agents/b.md"; echo c >"$T3/.claude/commands/cx.md"; echo r >"$T3/.claude/rules/x.md"
+  git -C "$T3" add -A && git -C "$T3" commit -qm one
+  mkdir -p "$P3/.claude"; printf '# vendored elsewhere\r\n.claude/agents/   # whole folder\r\n.claude/commands/c*.md\r\n' >"$P3/.claude/template-exclude"
+  git -C "$P3" add -A && git -C "$P3" commit -qm lists
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main 2>&1); RC=$?
+  { ! has "$OUT" "new               .claude/agents" && ! has "$OUT" "cx.md" && has "$OUT" "new               .claude/rules/x.md" && has "$OUT" "excluded"; } \
+    && ok "template-exclude: prefix and glob entries are not listed as new (CRLF, comments ok)" || bad "exclude dry" "rc=$RC $OUT"
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
+  [ ! -e "$P3/.claude/agents" ] && [ ! -e "$P3/.claude/commands/cx.md" ] && [ -f "$P3/.claude/rules/x.md" ] \
+    && ok "template-exclude: --apply never adds excluded paths" || bad "exclude apply" "rc=$RC $OUT"
+  echo k >"$T3/.claude/rules/k.md"; echo y >"$T3/.claude/rules/y.md"; git -C "$T3" add -A && git -C "$T3" commit -qm two
+  echo "adapted k" >"$P3/.claude/rules/k.md"; echo "adapted y" >"$P3/.claude/rules/y.md"; echo ".claude/rules/k.md" >"$P3/.claude/template-keep"
+  git -C "$P3" add -A && git -C "$P3" commit -qm adapted
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
+  { ! has "$OUT" "locally modified  .claude/rules/k.md" && has "$OUT" "locally modified  .claude/rules/y.md" && has "$OUT" "template-keep" \
+    && [ "$(cat "$P3/.claude/rules/k.md")" = "adapted k" ]; } \
+    && ok "template-keep: listed adapted file kept without the locally-modified advice" || bad "keep list" "rc=$RC $OUT"
 fi
 
 echo "== v3 /next command"
@@ -447,24 +522,113 @@ FF=$(mktemp -d); FL="$FF/calls.log"
 for b in fvm flutter dart; do printf '#!/usr/bin/env bash\necho "%s $*" >>"%s"\nexit 0\n' "$b" "$FL" >"$FF/$b"; chmod +x "$FF/$b"; done
 BASEP=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -e flutter -e fvm -e dart | paste -sd: -)
 R=$(new_repo); printf 'name: app\n' >"$R/pubspec.yaml"; echo '{"flutter":"3.24.0"}' >"$R/.fvmrc"
-OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^fvm flutter analyze' "$FL" && ! grep -q '^flutter ' "$FL" && ok ".fvmrc: gate runs fvm flutter analyze, not plain flutter" || bad "fvm" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; mkdir -p "$R/scripts"; printf '#!/usr/bin/env bash\necho "wrapper $*" >>"%s"\n' "$FL" >"$R/scripts/flutter.sh"; echo c >>"$R/file.txt"
-OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^wrapper analyze' "$FL" && ! grep -q '^fvm ' "$FL" && ok ".fvmrc + scripts/flutter.sh: gate uses the wrapper" || bad "wrapper" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; printf '#!/usr/bin/env bash\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
 W=$(new_repo); mkdir -p "$W/packages/core" "$W/apps/web"
 printf 'name: ws\nenvironment:\n  sdk: ^3.6.0\nworkspace:\n  - packages/core\n  - apps/web\n' >"$W/pubspec.yaml"
 printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
-OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && ok "pub workspace: dart analyze runs in every member" || bad "workspace" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.24.0"}' >"$W/.fvmrc"
 printf '#!/usr/bin/env bash\necho "wrapper $(basename "$PWD") $*" >>"%s"\n' "$FL" >"$W/scripts/flutter.sh"
 printf 'name: web\nresolution: workspace\ndependencies:\n  flutter:\n    sdk: flutter\n' >"$W/apps/web/pubspec.yaml"; echo c >>"$W/file.txt"
-OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 { grep -q '^wrapper core analyze --no-pub' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^dart ' "$FL"; } \
   && ok ".fvmrc wrapper + workspace: every member analyzed with the pinned wrapper" || bad "fvm workspace analyze" "rc=$RC $OUT $(cat "$FL")"
 grep -q '^wrapper core test' "$FL" && grep -q '^wrapper web test' "$FL" && ok "workspace + DONE_GATE_FULL: tests run per member" || bad "workspace tests" "rc=$RC $(cat "$FL")"
+
+echo "== v3 done-gate FVM cache, never an unpinned SDK"
+FC=$(mktemp -d); mkdir -p "$FC/versions/3.47.5/bin"; : >"$FL"
+for b in flutter dart; do printf '#!/usr/bin/env bash\necho "cache-%s $*" >>"%s"\nexit 0\n' "$b" "$FL" >"$FC/versions/3.47.5/bin/$b"; chmod +x "$FC/versions/3.47.5/bin/$b"; done
+GF=$(mktemp -d); printf '#!/usr/bin/env bash\necho "global-flutter $*" >>"%s"\n' "$FL" >"$GF/flutter"; chmod +x "$GF/flutter"
+R=$(new_repo); printf 'name: app\n' >"$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FC" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^cache-flutter analyze' "$FL" && ! grep -q '^global-flutter' "$FL" && ok ".fvmrc, no wrapper, no fvm: pinned SDK from FVM_CACHE_PATH" || bad "fvm cache" "rc=$RC $OUT $(cat "$FL")"
+: >"$FL"; echo c >>"$R/file.txt"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$(mktemp -d)" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ! grep -q '^global-flutter' "$FL" && ok "pin not installed: NOT RUN, never the global flutter" || bad "unpinned sdk" "rc=$RC $OUT $(cat "$FL")"
+
+echo "== v3 done-gate wrapper SDK's dart for pure-Dart members"
+: >"$FL"; W=$(new_repo); mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.47.5"}' >"$W/.fvmrc"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - apps/web\n' >"$W/pubspec.yaml"
+printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"
+printf 'name: web\nresolution: workspace\ndependencies:\n  flutter:\n    sdk: flutter\n' >"$W/apps/web/pubspec.yaml"
+printf '#!/usr/bin/env bash\n[ "$1" = --which ] && { echo "%s"; exit 0; }\necho "wrapper $(basename "$PWD") $*" >>"%s"\n' "$FC/versions/3.47.5/bin/flutter" "$FL" >"$W/scripts/flutter.sh"
+printf '#!/usr/bin/env bash\necho "cache-dart $(basename "$PWD") $*" >>"%s"\n' "$FL" >"$FC/versions/3.47.5/bin/dart"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+{ grep -q '^cache-dart core analyze --fatal-infos' "$FL" && grep -q '^cache-dart core test' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^wrapper core' "$FL" && ! grep -q '^dart ' "$FL"; } \
+  && ok "wrapper: pure-Dart member runs the pinned SDK's dart analyze --fatal-infos / dart test" || bad "wrapper dart" "rc=$RC $OUT $(cat "$FL")"
+
+echo "== v3 done-gate workspace_members parsing"
+: >"$FL"; printf '#!/usr/bin/env bash\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
+W=$(new_repo); mkdir -p "$W/packages/core" "$W/apps/web"
+printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
+printf 'name: ws\r\nworkspace:\r\n- packages/core   # the engine\r\n- "apps/web"\r\ndev_dependencies:\r\n  lints: ^5.0.0\r\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+{ grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && [ "$(wc -l <"$FL")" -eq 2 ]; } \
+  && ok "column-0 items, trailing comments, CRLF: every member found" || bad "members parse" "rc=$RC $OUT $(cat "$FL")"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - packages/gone\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "packages/gone" && ok "listed member missing on disk blocks" || bad "missing member" "rc=$RC $OUT"
+
+: >"$FL"; mkdir -p "$W/packages/my pkg"; printf 'name: mp\nresolution: workspace\n' >"$W/packages/my pkg/pubspec.yaml"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - packages/my pkg\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && grep -q '^dart my pkg analyze' "$FL" && ok "member path with a space is one member" || bad "member space" "rc=$RC $OUT $(cat "$FL")"
+R=$(new_repo); mkdir -p "$R/.claude/hooks/local"
+printf 'echo "Binding has not yet been initialized."; exit 1\n' >"$R/.claude/hooks/local/ft.sh"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_ENV_PROBE=false bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && ok "Flutter 'Binding has not yet been initialized' blocks (not wp-env)" || bad "binding init" "rc=$RC $OUT"
+
+: >"$FL"; printf '#!/usr/bin/env bash\ncat >/dev/null\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
+echo c >>"$W/file.txt"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^dart core analyze' "$FL" && grep -q '^dart my pkg analyze' "$FL" && ok "a gate reading stdin cannot swallow the remaining members" || bad "member stdin" "rc=$RC $OUT $(cat "$FL")"
+
+echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
+R=$(new_repo); C=$(mktemp)
+touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
+# Fake pinned-SDK wrapper: logs each call; FAKE_* env vars choose the outcome.
+cat >"$R/scripts/flutter.sh" <<EOW
+#!/usr/bin/env bash
+echo "\$*" >>'$C'
+case "\$1" in
+  --which) [ "\${FAKE_NO_SDK:-0}" = 1 ] && { echo "flutter.sh: Flutter 3.47.5 not found" >&2; exit 127; }; echo fake-flutter ;;
+  analyze) [ "\${FAKE_ANALYZE_FAIL:-0}" != 0 ] && { [ "\$FAKE_ANALYZE_FAIL" = 1 ] && echo "  error • Undefined name 'x' • lib/main.dart:3:5 • undefined_identifier"; echo "\${FAKE_EXTRA:-}"; exit 1; }; echo "No issues found!" ;;
+  test) [ "\${FAKE_TEST_FAIL:-0}" = 1 ] && { echo "Some tests failed."; echo "\${FAKE_EXTRA:-}"; exit 1; }; echo "All tests passed!" ;;
+esac
+EOW
+fg() { (cd "$R/sub" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$BASEP" "$@" bash "$HOOKS/done-gate.sh" 2>&1); }
+calls() { grep -c "^$1" "$C" 2>/dev/null || true; }
+OUT=$(fg env FAKE_NO_SDK=1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "systemMessage" && [ "$(calls analyze)" -eq 0 ] && ok "no pinned SDK -> NOT RUN to the user, no block" || bad "no sdk" "rc=$RC $OUT"
+sed -i 's|^  --which) \[|  --which) printf "line one\\r\\n\\tline two\\n" >\&2; [|' "$R/scripts/flutter.sh"
+OUT=$(fg env FAKE_NO_SDK=1)
+[ "$(printf '%s' "$OUT" | wc -l | tr -d ' ')" -eq 0 ] && ! has "$OUT" $'\t' && ! has "$OUT" $'\r' && ok "multi-line SDK error stays one valid JSON line" || bad "user_note escaping" "$OUT"
+sed -i 's|printf "line one\\r\\n\\tline two\\n" >\&2; ||' "$R/scripts/flutter.sh"
+OUT=$(fg env); RC=$?
+[ $RC -eq 0 ] && [ "$(calls analyze)" -eq 1 ] && [ "$(calls test)" -eq 0 ] && ok "analyze runs through scripts/flutter.sh, tests opt-in" || bad "flutter analyze" "rc=$RC $(cat "$C")"
+OUT=$(fg env); [ "$(calls analyze)" -eq 1 ] && ok "unchanged tree skips flutter analyze" || bad "flutter skip" "$(cat "$C")"
+OUT=$(fg env DONE_GATE_FULL=1); RC=$?
+[ $RC -eq 0 ] && [ "$(calls test)" -eq 1 ] && ok "DONE_GATE_FULL=1 runs flutter test" || bad "full tests" "rc=$RC $(cat "$C")"
+echo "c" >>"$R/file.txt"
+OUT=$(fg env FAKE_ANALYZE_FAIL=1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "lib/main.dart:3:5" && ok "analyzer error blocks with details" || bad "analyze fail" "rc=$RC $OUT"
+OUT=$(fg env DONE_GATE_FULL=1 FAKE_TEST_FAIL=1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "tests FAILED" && ok "failing flutter test blocks under DONE_GATE_FULL" || bad "test fail" "rc=$RC $OUT"
+ENVTXT="Cannot connect to the Docker daemon at unix:///var/run/docker.sock"
+OUT=$(fg env DONE_GATE_ENV_PROBE=false FAKE_ANALYZE_FAIL=1 FAKE_EXTRA="$ENVTXT"); RC=$?
+[ $RC -eq 2 ] && ok "indented 'error •' analyze line + env-down text still blocks" || bad "flutter marker error" "rc=$RC $OUT"
+for line in "  warning • Unused import • lib/a.dart:1:8 • unused_import" "  info • Prefer const • lib/a.dart:2:3 • prefer_const"; do
+  OUT=$(fg env DONE_GATE_ENV_PROBE=false FAKE_ANALYZE_FAIL=2 FAKE_EXTRA="$line"$'\n'"$ENVTXT"); RC=$?
+  [ $RC -eq 2 ] && ok "indented '${line:2:7}' analyze line + env-down text still blocks" || bad "flutter marker ${line:2:7}" "rc=$RC $OUT"
+done
+OUT=$(fg env DONE_GATE_ENV_PROBE=false DONE_GATE_FULL=1 FAKE_TEST_FAIL=1 FAKE_EXTRA="$ENVTXT"); RC=$?
+[ $RC -eq 2 ] && ok "'Some tests failed' + env-down text still blocks" || bad "flutter test marker" "rc=$RC $OUT"
 
 echo "== v3 project lessons in the docs"
 lesson() { grep -qF -- "$2" "$TEMPLATE/$1" && ok "$1: $2" || bad "$1 lacks: $2"; }
