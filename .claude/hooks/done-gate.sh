@@ -35,10 +35,6 @@ INPUT=$(cat)
 [ "${DONE_GATE_MODE:-auto}" = "manual" ] && exit 0
 printf '%s' "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && exit 0
 
-# Run from the project root no matter where Claude cd'ed to.
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-cd "$ROOT" 2>/dev/null || exit 0
-
 # Message shown to the USER only — does not make Claude take another turn.
 # Any text is escaped (backslash first) so a captured multi-line log cannot
 # make the JSON invalid — Claude Code drops an invalid notice silently.
@@ -48,6 +44,12 @@ user_note() {
   m=$(printf '%s' "$m" | tr -d '\000-\010\013\014\016-\037\177')
   printf '{"systemMessage":"%s"}\n' "$m"
 }
+
+# Run from the project root no matter where Claude cd'ed to. A wrong
+# CLAUDE_PROJECT_DIR would otherwise disable every gate without a word; Claude
+# cannot fix the variable, so tell the user instead of blocking.
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+cd "$ROOT" 2>/dev/null || { user_note "done-gate: NOT RUN — cannot enter the project directory $ROOT (check CLAUDE_PROJECT_DIR)."; exit 0; }
 
 # UNC working directory (\\wsl.localhost\... opened from Windows): npm spawns
 # CMD.EXE, which cannot use UNC paths — every gate would fail falsely.

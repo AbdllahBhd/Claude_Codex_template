@@ -123,6 +123,8 @@ OUT=$(cd "$R" && echo '{"stop_hook_active":true}' | CLAUDE_PROJECT_DIR="$R" DONE
 R0=$(new_repo)
 OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 0 ] && [ -z "$OUT" ] && ok "no stack and no DONE_GATE_CMD: silent pass" || bad "no stack" "rc=$RC $OUT"
+OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0/missing" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "systemMessage" && ok "unreachable project dir -> NOT RUN to the user, no block" || bad "bad ROOT" "rc=$RC $OUT"
 if command -v npm >/dev/null 2>&1; then
   R2=$(new_repo)
   printf '{"name":"t","version":"1.0.0","scripts":{"lint":"node -e \\"console.log(String.fromCharCode(108)+\\x27int.js:2 error bad\\x27);process.exit(1)\\""}}\n' >"$R2/package.json"
