@@ -113,37 +113,38 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
 - [x] **T10 — InstaReels.** Owner decision first: create `develop` from `main` (per `delivery.md`), or sync onto a branch cut from `main` and merge into `main` only with the owner's yes. Second owner decision: whether to take the 1157 vendored skill files. They are template-owned, so `--apply` adds them. If not, give the project a list of excluded paths to skip; that may need a sync-template option, logged for T11.
   **Decided 2026-11-26:** (1) `develop` created from `main`, merge there. (2) Content-only: the 1135 new paths InstaReels had at d6a1206 and removed afterwards (owner's 2026-11-17 strip, 56096bb) are removed again after `--apply`, plus the coding-only additions since (`.claude/hooks/skill-nudge.sh`, `scripts/android-emu.sh`, `scripts/android-ui.sh`, `scripts/fixtures/ui-*.xml`, `scripts/test-hooks.sh`). The template files the project adapted for content work stay locally modified (`workflow.md`, deepen, retro, `.codex/config.toml`, `AGENTS.md`). (3) Keep repo-guard, session-guard and delegate-guard; no done-gate, no skill-nudge.
   **Done-when amendment (owner decision 2):** in clause 1, the excluded paths above count as "kept with a reason" (they show as `new`), and so do the 5 adapted files (they show as `locally modified`). Clause 2: done-gate is excluded, so record "no stack gate, done-gate excluded by owner" instead of the trace. Skipping these paths on every sync becomes T11 (o).
-- [ ] **T11 — Template follow-ups.** From T1:
-  - (a) `skill-nudge.sh`: add `*/template/*.html` to the UI glob, with a test case.
-  - (b) test case: a project with no stack and no `DONE_GATE_CMD` passes through the done-gate silently.
-  - (c) `docs/template-files.md`: make `.gitattributes` project-owned (owner yes, 2026-11-25).
-  - (d) `scripts/test-hooks.sh` ships to projects, but its ownership audit fails there. Skip that audit when the repo isn't the template.
+- [x] **T11 — Template follow-ups.** From T1:
+  - (a) `skill-nudge.sh`: add `*/template/*.html` to the UI glob, with a test case. → b56ba20
+  - (b) test case: a project with no stack and no `DONE_GATE_CMD` passes through the done-gate silently. → b1307c2
+  - (c) `docs/template-files.md`: make `.gitattributes` project-owned (owner yes, 2026-11-25). → 42a7120
+  - (d) `scripts/test-hooks.sh` ships to projects, but its ownership audit fails there. Skip that audit when the repo isn't the template. → af60657
 
   From T3:
-  - (e) done-gate `ENV_DOWN`: add wp-env's `has not yet been initiali[sz]ed`, with a test case. AllaghenBrand's old hook had it; it is harmless there while the gate stays manual.
+  - (e) done-gate `ENV_DOWN`: add wp-env's `has not yet been initiali[sz]ed`, with a test case. AllaghenBrand's old hook had it; it is harmless there while the gate stays manual. → 4131537
 
   From T4:
-  - (f) port StoreCore's dropped done-gate cases upstream: the ANSI-wrapped `FOUND n ERRORS` phpcs marker blocks despite env-down text, and `Error: connect ENOENT /var/run/docker.sock` → NOT RUN. The second fails on v3 (`ENOENT.*docker` was dropped), so the fix adds it to `ENV_DOWN`.
+  - (f) port StoreCore's dropped done-gate cases upstream: the ANSI-wrapped `FOUND n ERRORS` phpcs marker blocks despite env-down text, and `Error: connect ENOENT /var/run/docker.sock` → NOT RUN. The second fails on v3 (`ENOENT.*docker` was dropped), so the fix adds it to `ENV_DOWN`. → 39415e3
 
   From T6:
-  - (g) done-gate: a missing pinned Flutter (`scripts/flutter.sh` exits 127, "not found") should be NOT RUN to the user, not a code failure (DoWee's old hook did it via `flutter.sh --which`); also add the indented `  error • … • file:line` / `warning` / `info` analyze lines and `Some tests failed` to `CODE_ERR`. Port DoWee's 7 dropped Flutter cases into `scripts/test-hooks.sh`.
-  - (h) `sync-template.sh` settings merge: a project's own fields on a template hook (DoWee's Stop `timeout: 600`) are reset to the template's (300) on every sync. Keep the project's per-hook fields; add a test case.
-  - (i) `validate-code.sh`: Dart bare `print(` note and `*.mjs` in the JS debug-leftover glob (DoWee had both).
+  - (g) done-gate: a missing pinned Flutter (`scripts/flutter.sh` exits 127, "not found") should be NOT RUN to the user, not a code failure (DoWee's old hook did it via `flutter.sh --which`); also add the indented `  error • … • file:line` / `warning` / `info` analyze lines and `Some tests failed` to `CODE_ERR`. Port DoWee's 7 dropped Flutter cases into `scripts/test-hooks.sh`. → fedab5e
+  - (h) `sync-template.sh` settings merge: a project's own fields on a template hook (DoWee's Stop `timeout: 600`) are reset to the template's (300) on every sync. Keep the project's per-hook fields; add a test case. → 9b5a682
+  - (i) `validate-code.sh`: Dart bare `print(` note and `*.mjs` in the JS debug-leftover glob (DoWee had both). → aec980a
 
   From T7:
-  - (j) done-gate FVM lookup: with `.fvmrc`, no `scripts/flutter.sh` and no `fvm` on PATH, v3 falls back to any global `flutter`, even one that does not match the pin (GRdLines: global 3.24.4 vs pinned 3.47.5). Look in `${FVM_CACHE_PATH:-~/fvm}/versions/<pin>/bin` first, and never gate with an unpinned SDK (NOT RUN instead); add a test case.
-  - (k) done-gate with only the wrapper: `DART` stays empty, so pure-Dart members get `flutter analyze`/`flutter test`. `flutter test` fails grlines_core's vector tests (`Isolate.resolvePackageUriSync`), and CI uses `dart test`. Derive `DART` from the wrapper's SDK (`--which` → sibling `dart`) and run `dart analyze --fatal-infos` (parity with `flutter analyze`, which treats infos as fatal). Once fixed, GRdLines' wrapper can drop its pure-Dart dispatch.
-  - (l) `workspace_members`: a column-0 `- item` ends the block, trailing comments and CRLF are kept, and a listed member that is missing is skipped silently. GRdLines' old gate failed on a missing member.
+  - (j) done-gate FVM lookup: with `.fvmrc`, no `scripts/flutter.sh` and no `fvm` on PATH, v3 falls back to any global `flutter`, even one that does not match the pin (GRdLines: global 3.24.4 vs pinned 3.47.5). Look in `${FVM_CACHE_PATH:-~/fvm}/versions/<pin>/bin` first, and never gate with an unpinned SDK (NOT RUN instead); add a test case. → 49b1763
+  - (k) done-gate with only the wrapper: `DART` stays empty, so pure-Dart members get `flutter analyze`/`flutter test`. `flutter test` fails grlines_core's vector tests (`Isolate.resolvePackageUriSync`), and CI uses `dart test`. Derive `DART` from the wrapper's SDK (`--which` → sibling `dart`) and run `dart analyze --fatal-infos` (parity with `flutter analyze`, which treats infos as fatal). Once fixed, GRdLines' wrapper can drop its pure-Dart dispatch. → de4545d
+  - (l) `workspace_members`: a column-0 `- item` ends the block, trailing comments and CRLF are kept, and a listed member that is missing is skipped silently. GRdLines' old gate failed on a missing member. → 8337c48
 
   From T8:
-  - (m) done-gate: `cd "$ROOT" || exit 0` fails open, so a wrong `CLAUDE_PROJECT_DIR` silently disables every gate (game1's old hook blocked). Decide fail-closed (exit 2) vs. a user note; add a test case.
-  - (n) done-gate keeps only `tail -30` of a gate's log, so a local gate with several failing checks loses the earliest labels (game1 caps each check at 8 lines). Consider a larger tail for `local-*` gates or printing labels first.
+  - (m) done-gate: `cd "$ROOT" || exit 0` fails open, so a wrong `CLAUDE_PROJECT_DIR` silently disables every gate (game1's old hook blocked). Decide fail-closed (exit 2) vs. a user note; add a test case. → 8d19494
+  - (n) done-gate keeps only `tail -30` of a gate's log, so a local gate with several failing checks loses the earliest labels (game1 caps each check at 8 lines). Consider a larger tail for `local-*` gates or printing labels first. → 3518acf
 
   From T10:
-  - (o) `sync-template.sh`: a per-project skip list (e.g. `.claude/template-exclude`, prefixes allowed). Matched paths are neither added by `--apply` nor shown as `new`; add a test case. InstaReels needs it for its 1142 excluded paths, best expressed as prefixes.
-  - (p) the "locally modified" advice is wrong for adapted template files kept on purpose (InstaReels' 7). Consider a `.claude/template-keep` list that silences them, with a test case.
+  - (o) `sync-template.sh`: a per-project skip list (e.g. `.claude/template-exclude`, prefixes allowed). Matched paths are neither added by `--apply` nor shown as `new`; add a test case. InstaReels needs it for its 1142 excluded paths, best expressed as prefixes. → c083b89, 2d73ef1
+  - (p) the "locally modified" advice is wrong for adapted template files kept on purpose (InstaReels' 7). Consider a `.claude/template-keep` list that silences them, with a test case. → 1d4a0f1, 2d73ef1
 
   Owner decisions (2026-11-26): (m) → NOT RUN user note (like the UNC case), not fail-closed. (o) and (p) are both in T11. Go-ahead given for the 5-group plan: done-gate env/markers (e, f, g), done-gate SDK (j, k, l), done-gate robustness (b, m, n), sync-template (h, o, p), single fixes (a, c, d, i). Each is test-first, with one commit per follow-up.
+  Evidence (2026-11-26, at 2d73ef1): `bash scripts/test-hooks.sh` → `passed: 189  failed: 0`, rc 0 (157 at b425b7a). Each fix had a failing case first. (b) passed at once: it is new coverage, checked by a deliberate break of the hook (1 FAIL), then restored. (c) and (d) are test-file and docs changes checked by their own new cases. Fence: every change is in this template repo. No project repo was written; DoWee was only read (`git show`) to port its cases.
   Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner.
   Done when: each follow-up line in the Verification log is either linked to a commit or marked deferred by the owner. The template's `bash scripts/test-hooks.sh` reports `failed: 0`. No files changed outside the template repo.
 - [ ] **T12 — Push (owner decision).** Ask once, listing the 9 pushable projects and their `develop` heads. On a yes, push each one and remove `/mnt/disque-d/Develope/_v3-rollout`.
