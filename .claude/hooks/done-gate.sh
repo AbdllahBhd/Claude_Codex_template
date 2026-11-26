@@ -121,7 +121,9 @@ run_gate() { # $1 = label, rest = command
   local label=$1; shift
   local log="$LOGDIR/${label// /_}.log"
   RAN="$RAN $label"
-  if ! "$@" >"$log" 2>&1; then
+  # </dev/null: a prompting tool (fvm install?) must neither hang the stop nor
+  # read the workspace-member list the caller loops over.
+  if ! "$@" >"$log" 2>&1 </dev/null; then
     if env_down_failure "$log"; then
       ENV_FAILURES="$ENV_FAILURES $label"
       [ -z "$ENV_DETAIL" ] && ENV_DETAIL=$(tail -3 "$log")

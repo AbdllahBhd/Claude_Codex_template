@@ -584,6 +584,11 @@ printf 'echo "Binding has not yet been initialized."; exit 1\n' >"$R/.claude/hoo
 OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_ENV_PROBE=false bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 2 ] && ok "Flutter 'Binding has not yet been initialized' blocks (not wp-env)" || bad "binding init" "rc=$RC $OUT"
 
+: >"$FL"; printf '#!/usr/bin/env bash\ncat >/dev/null\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
+echo c >>"$W/file.txt"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^dart core analyze' "$FL" && grep -q '^dart my pkg analyze' "$FL" && ok "a gate reading stdin cannot swallow the remaining members" || bad "member stdin" "rc=$RC $OUT $(cat "$FL")"
+
 echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
 R=$(new_repo); C=$(mktemp)
 touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
