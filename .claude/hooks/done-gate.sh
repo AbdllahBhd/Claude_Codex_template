@@ -82,6 +82,7 @@ NL=$'\n'
 CODE_FAILURES=""
 ENV_FAILURES=""
 ENV_DETAIL=""
+SDK_NOTE=""
 RAN=""
 
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
@@ -89,7 +90,7 @@ RAN=""
 # error markers, and (c) the environment probe confirms it is down.
 ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|connect ENOENT [^ ]*docker\.sock|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
 # Markers of real code findings (tsc, eslint, phpcs, phpunit, dart, pytest...).
-CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^(error|ERROR) [•-] '
+CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^ *(error|ERROR|warning|info) [•-] |Some tests failed'
 
 # Is the environment UP? Default: Docker answers and has running containers.
 # DONE_GATE_ENV_PORT narrows it to this project's container; DONE_GATE_ENV_PROBE
@@ -155,14 +156,20 @@ elif [ -f pubspec.yaml ]; then
   # FVM-pinned projects must not run the global SDK; a project wrapper wins.
   # Arrays + absolute wrapper path: members run from their own directory.
   FLUTTER=(); DART=()
-  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then FLUTTER=(bash "$PWD/scripts/flutter.sh")
+  if [ -f .fvmrc ] && [ -f scripts/flutter.sh ]; then
+    FLUTTER=(bash "$PWD/scripts/flutter.sh")
+    # Exit 127 from `--which` = the pinned SDK is not on this machine: no code
+    # change fixes that, so it is NOT RUN, not a block. A wrapper without
+    # --which fails differently and is simply used.
+    WHICH=$(bash scripts/flutter.sh --which 2>&1); [ $? -eq 127 ] && { SDK_NOTE=$WHICH; FLUTTER=(); }
   elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
   elif command -v flutter >/dev/null 2>&1; then FLUTTER=(flutter)
   fi
   # The wrapper pins dart too: never pair it with the global dart.
   [ ${#DART[@]} -eq 0 ] && [ "${FLUTTER[0]:-}" != bash ] && command -v dart >/dev/null 2>&1 && DART=(dart)
   MEMBERS=$(workspace_members)
-  if [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
+  if [ -n "$SDK_NOTE" ]; then :
+  elif [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then
     # A pub workspace root analyzes nothing useful on its own: run each member,
     # Flutter members (and every member when only the pinned wrapper exists)
     # with flutter, pure Dart members with dart.
@@ -189,7 +196,7 @@ for f in .claude/hooks/local/*.sh; do
   [ -f "$f" ] && run_gate "local-$(basename "$f" .sh)" bash "$f"
 done
 
-[ -z "$RAN" ] && exit 0   # no gate defined for this stack
+[ -z "$RAN" ] && [ -z "$SDK_NOTE" ] && exit 0   # no gate defined for this stack
 
 if [ -n "$CODE_FAILURES" ]; then
   printf 'DONE-GATE BLOCKED: quality gates failed on the code.\nFix these before finishing:%s\n' "$CODE_FAILURES" >&2
@@ -198,10 +205,10 @@ fi
 
 # NOT RUN goes to the user only (systemMessage): sending it to Claude would
 # force an extra turn on every stop while the environment stays down.
-if [ -n "$ENV_FAILURES" ]; then
-  user_note "done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging.${NL}${ENV_DETAIL}"
-  exit 0
-fi
+NOTE=""
+[ -n "$SDK_NOTE" ] && NOTE="done-gate: NOT RUN for Flutter — ${SDK_NOTE}. Run analyze/tests on a machine with the pinned SDK before merging."
+[ -n "$ENV_FAILURES" ] && NOTE="${NOTE:+$NOTE$NL}done-gate: NOT RUN for${ENV_FAILURES} — the environment is down (Docker/wp-env). Start it and re-check before merging.${NL}${ENV_DETAIL}"
+[ -n "$NOTE" ] && { user_note "$NOTE"; exit 0; }
 
 [ -n "$STAMP" ] && printf '%s' "$FINGERPRINT" >"$STAMP"
 exit 0

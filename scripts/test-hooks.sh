@@ -503,6 +503,47 @@ OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DON
   && ok ".fvmrc wrapper + workspace: every member analyzed with the pinned wrapper" || bad "fvm workspace analyze" "rc=$RC $OUT $(cat "$FL")"
 grep -q '^wrapper core test' "$FL" && grep -q '^wrapper web test' "$FL" && ok "workspace + DONE_GATE_FULL: tests run per member" || bad "workspace tests" "rc=$RC $(cat "$FL")"
 
+echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
+R=$(new_repo); C=$(mktemp)
+touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
+# Fake pinned-SDK wrapper: logs each call; FAKE_* env vars choose the outcome.
+cat >"$R/scripts/flutter.sh" <<EOW
+#!/usr/bin/env bash
+echo "\$*" >>'$C'
+case "\$1" in
+  --which) [ "\${FAKE_NO_SDK:-0}" = 1 ] && { echo "flutter.sh: Flutter 3.47.5 not found" >&2; exit 127; }; echo fake-flutter ;;
+  analyze) [ "\${FAKE_ANALYZE_FAIL:-0}" != 0 ] && { [ "\$FAKE_ANALYZE_FAIL" = 1 ] && echo "  error • Undefined name 'x' • lib/main.dart:3:5 • undefined_identifier"; echo "\${FAKE_EXTRA:-}"; exit 1; }; echo "No issues found!" ;;
+  test) [ "\${FAKE_TEST_FAIL:-0}" = 1 ] && { echo "Some tests failed."; echo "\${FAKE_EXTRA:-}"; exit 1; }; echo "All tests passed!" ;;
+esac
+EOW
+fg() { (cd "$R/sub" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$BASEP" "$@" bash "$HOOKS/done-gate.sh" 2>&1); }
+calls() { grep -c "^$1" "$C" 2>/dev/null || true; }
+OUT=$(fg env FAKE_NO_SDK=1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "systemMessage" && [ "$(calls analyze)" -eq 0 ] && ok "no pinned SDK -> NOT RUN to the user, no block" || bad "no sdk" "rc=$RC $OUT"
+sed -i 's|^  --which) \[|  --which) printf "line one\\r\\n\\tline two\\n" >\&2; [|' "$R/scripts/flutter.sh"
+OUT=$(fg env FAKE_NO_SDK=1)
+[ "$(printf '%s' "$OUT" | wc -l | tr -d ' ')" -eq 0 ] && ! has "$OUT" $'\t' && ! has "$OUT" $'\r' && ok "multi-line SDK error stays one valid JSON line" || bad "user_note escaping" "$OUT"
+sed -i 's|printf "line one\\r\\n\\tline two\\n" >\&2; ||' "$R/scripts/flutter.sh"
+OUT=$(fg env); RC=$?
+[ $RC -eq 0 ] && [ "$(calls analyze)" -eq 1 ] && [ "$(calls test)" -eq 0 ] && ok "analyze runs through scripts/flutter.sh, tests opt-in" || bad "flutter analyze" "rc=$RC $(cat "$C")"
+OUT=$(fg env); [ "$(calls analyze)" -eq 1 ] && ok "unchanged tree skips flutter analyze" || bad "flutter skip" "$(cat "$C")"
+OUT=$(fg env DONE_GATE_FULL=1); RC=$?
+[ $RC -eq 0 ] && [ "$(calls test)" -eq 1 ] && ok "DONE_GATE_FULL=1 runs flutter test" || bad "full tests" "rc=$RC $(cat "$C")"
+echo "c" >>"$R/file.txt"
+OUT=$(fg env FAKE_ANALYZE_FAIL=1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "lib/main.dart:3:5" && ok "analyzer error blocks with details" || bad "analyze fail" "rc=$RC $OUT"
+OUT=$(fg env DONE_GATE_FULL=1 FAKE_TEST_FAIL=1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "tests FAILED" && ok "failing flutter test blocks under DONE_GATE_FULL" || bad "test fail" "rc=$RC $OUT"
+ENVTXT="Cannot connect to the Docker daemon at unix:///var/run/docker.sock"
+OUT=$(fg env DONE_GATE_ENV_PROBE=false FAKE_ANALYZE_FAIL=1 FAKE_EXTRA="$ENVTXT"); RC=$?
+[ $RC -eq 2 ] && ok "indented 'error •' analyze line + env-down text still blocks" || bad "flutter marker error" "rc=$RC $OUT"
+for line in "  warning • Unused import • lib/a.dart:1:8 • unused_import" "  info • Prefer const • lib/a.dart:2:3 • prefer_const"; do
+  OUT=$(fg env DONE_GATE_ENV_PROBE=false FAKE_ANALYZE_FAIL=2 FAKE_EXTRA="$line"$'\n'"$ENVTXT"); RC=$?
+  [ $RC -eq 2 ] && ok "indented '${line:2:7}' analyze line + env-down text still blocks" || bad "flutter marker ${line:2:7}" "rc=$RC $OUT"
+done
+OUT=$(fg env DONE_GATE_ENV_PROBE=false DONE_GATE_FULL=1 FAKE_TEST_FAIL=1 FAKE_EXTRA="$ENVTXT"); RC=$?
+[ $RC -eq 2 ] && ok "'Some tests failed' + env-down text still blocks" || bad "flutter test marker" "rc=$RC $OUT"
+
 echo "== v3 project lessons in the docs"
 lesson() { grep -qF -- "$2" "$TEMPLATE/$1" && ok "$1: $2" || bad "$1 lacks: $2"; }
 TPS=.claude/skills/testing-patterns/SKILL.md
