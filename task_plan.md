@@ -143,6 +143,7 @@ Each project task (T1–T10) is done when all of these hold, with `<P>` = that p
   - (o) `sync-template.sh`: a per-project skip list (e.g. `.claude/template-exclude`, prefixes allowed). Matched paths are neither added by `--apply` nor shown as `new`; add a test case. InstaReels needs it for its 1142 excluded paths, best expressed as prefixes.
   - (p) the "locally modified" advice is wrong for adapted template files kept on purpose (InstaReels' 7). Consider a `.claude/template-keep` list that silences them, with a test case.
 
+  Owner decisions (2026-11-26): (m) → NOT RUN user note (like the UNC case), not fail-closed. (o) and (p) are both in T11. Go-ahead given for the 5-group plan: done-gate env/markers (e, f, g), done-gate SDK (j, k, l), done-gate robustness (b, m, n), sync-template (h, o, p), single fixes (a, c, d, i). Each is test-first, with one commit per follow-up.
   Every template bug logged in T1–T10 gets a fix on a template branch (TDD in `scripts/test-hooks.sh`), or is deferred by the owner.
   Done when: each follow-up line in the Verification log is either linked to a commit or marked deferred by the owner. The template's `bash scripts/test-hooks.sh` reports `failed: 0`. No files changed outside the template repo.
 - [ ] **T12 — Push (owner decision).** Ask once, listing the 9 pushable projects and their `develop` heads. On a yes, push each one and remove `/mnt/disque-d/Develope/_v3-rollout`.
