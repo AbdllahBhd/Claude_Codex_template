@@ -38,7 +38,7 @@ The first matching row wins (`*` also matches `/`). Keep specific rows above glo
 | `docs/*` | project | |
 | `AGENTS.md` | template | pointer to CLAUDE.md |
 | `CATALOG.md` | template | |
-| `.gitattributes` | template | |
+| `.gitattributes` | project | line endings and binary types differ per stack (owner 2026-11-25) |
 | `CLAUDE.md` | project | |
 | `CLAUDE.local.md` | project | git-ignored |
 | `README.md` | project | the template's README becomes the project's |

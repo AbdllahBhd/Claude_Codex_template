@@ -227,6 +227,7 @@ U=$(ownership_audit "$TEMPLATE")
 R=$(new_repo); mkdir -p "$R/docs" "$R/.claude"; cp "$TEMPLATE/docs/template-files.md" "$R/docs/"
 echo "commit x" >"$R/.claude/template-version"; touch "$R/app.unlisted"; git -C "$R" add -A; git -C "$R" commit -qm p
 U=$(ownership_audit "$R"); [ "$U" = skip ] && ok "ownership audit skipped in a synced project" || bad "audit in project" "$U"
+grep -q '^| `.gitattributes` | project |' "$TF" && ok ".gitattributes is project-owned" || bad ".gitattributes owner"
 
 echo "== v3 sync-template"
 SYNC="$TEMPLATE/scripts/sync-template.sh"
