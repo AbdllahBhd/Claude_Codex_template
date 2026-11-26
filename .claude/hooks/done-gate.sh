@@ -87,7 +87,7 @@ RAN=""
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
 # counts as environment-down only if (a) it matches, (b) the log shows no code
 # error markers, and (c) the environment probe confirms it is down.
-ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
+ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|connect ENOENT [^ ]*docker\.sock|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
 # Markers of real code findings (tsc, eslint, phpcs, phpunit, dart, pytest...).
 CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^(error|ERROR) [•-] '
 

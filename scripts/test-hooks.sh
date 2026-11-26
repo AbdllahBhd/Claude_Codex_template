@@ -112,6 +112,10 @@ OUT=$(gate env PATH="$ND" DONE_GATE_CMD="echo \"The command 'docker' could not b
 echo "c5" >>"$R/file.txt"
 OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo 'Error: The environment has not yet been initialized. Run wp-env start'; exit 1"); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "wp-env 'has not yet been initialized' -> NOT RUN" || bad "wp-env init" "rc=$RC $OUT"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="printf '\033[1mFOUND 3 ERRORS AFFECTING 2 LINES\033[0m\nError: Environment not initialized\n'; exit 1"); RC=$?
+[ $RC -eq 2 ] && ok "ANSI-wrapped phpcs FOUND n ERRORS + env-down text still blocks" || bad "ansi phpcs" "rc=$RC $OUT"
+OUT=$(gate env DONE_GATE_ENV_PROBE=false DONE_GATE_CMD="echo 'Error: connect ENOENT /var/run/docker.sock'; exit 1"); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ok "connect ENOENT docker.sock -> NOT RUN" || bad "docker.sock ENOENT" "rc=$RC $OUT"
 mkdir -p "$R/.claude/hooks/local"
 printf 'echo "local/extra.sh:1 error: project rule broken"; exit 1\n' >"$R/.claude/hooks/local/extra.sh"
 OUT=$(gate env DONE_GATE_CMD="exit 0"); RC=$?
