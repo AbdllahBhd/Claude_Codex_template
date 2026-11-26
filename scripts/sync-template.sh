@@ -159,6 +159,11 @@ def merge_event(t, mine, b):
         base_cmds = {cmd(h) for h in bg.get(m, [])}
         hooks = merge(tg.get(m, []), mg.get(m, []), bg.get(m, []), key=cmd,
                       drop_mine=lambda h: cmd(h) in base_cmds or template_cmd(cmd(h)))
+        # A field the project set on a template hook (e.g. a longer Stop
+        # timeout) wins over the template's value; untouched fields update.
+        mine_by, base_by = ({cmd(h): h for h in l} for l in (mg.get(m, []), bg.get(m, [])))
+        hooks = [{**h, **{k: v for k, v in mine_by[cmd(h)].items() if base_by.get(cmd(h), {}).get(k) != v}}
+                 if cmd(h) in mine_by else h for h in hooks]
         if hooks:
             src = next((e for e in t + mine if isinstance(e, dict) and e.get("matcher") == m), {})
             out.append({**{k: v for k, v in src.items() if k != "hooks"}, "hooks": hooks})

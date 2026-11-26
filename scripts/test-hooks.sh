@@ -317,6 +317,18 @@ assert "Stop" in h, h' "$P2/.claude/settings.json" 2>&1)
   [ -z "$E" ] && ok "--apply merges hook groups per command: template guard and project local hook both kept" || bad "dict hook merge" "rc=$RC $E $OUT"
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["permissions"]["allow"]==["Bash(ls)"], d' "$P2/.claude/settings.json" \
     && ok "--apply drops an allow rule the template removed" || bad "template-removed rule kept" "$(cat "$P2/.claude/settings.json")"
+  git -C "$P2" add -A && git -C "$P2" commit -qm two
+  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["hooks"]["Stop"][0]["hooks"][0]["timeout"]=600; json.dump(d,open(p,"w"))' "$P2/.claude/settings.json"
+  git -C "$P2" commit -qam "own timeout"
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"bash .claude/hooks/guard.sh","timeout":30}]}],"Stop":[{"hooks":[{"type":"command","command":"bash .claude/hooks/done.sh","timeout":300}]}]},"permissions":{"allow":["Bash(ls)"]}}' >"$T2/.claude/settings.json"
+  git -C "$T2" commit -qam three
+  OUT=$(cd "$P2" && bash "$SYNC" "$T2" --ref main --apply 2>&1); RC=$?
+  E=$(python3 -c '
+import json,sys; h=json.load(open(sys.argv[1]))["hooks"]
+assert h["Stop"][0]["hooks"][0].get("timeout")==600, h["Stop"]
+g=[x for x in h["PreToolUse"][0]["hooks"] if x["command"].endswith("guard.sh")][0]
+assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
+  [ -z "$E" ] && ok "--apply keeps a project's own field on a template hook (Stop timeout 600), takes the template's other changes" || bad "per-hook fields" "rc=$RC $E"
 fi
 
 echo "== v3 /next command"
