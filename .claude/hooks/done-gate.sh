@@ -77,8 +77,9 @@ if GIT_DIR=$(git rev-parse --git-dir 2>/dev/null); then
 fi
 
 # --- Gates ------------------------------------------------------------------
-LOGDIR=$(mktemp -d 2>/dev/null || echo "${TMPDIR:-/tmp}/done-gate-$$")
-mkdir -p "$LOGDIR"; trap 'rm -rf "$LOGDIR"' EXIT
+# No fallback to a predictable /tmp name: another user could pre-create it.
+LOGDIR=$(mktemp -d 2>/dev/null) || { user_note "done-gate: NOT RUN — mktemp -d failed (check TMPDIR)."; exit 0; }
+trap 'rm -rf "$LOGDIR"' EXIT
 NL=$'\n'
 CODE_FAILURES=""
 ENV_FAILURES=""
@@ -183,7 +184,10 @@ elif [ -f pubspec.yaml ]; then
     # moved with `fvm config --cache-path` is found only via fvm or FVM_CACHE_PATH.
     PIN=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc | head -1)
     SDK="${FVM_CACHE_PATH:-$HOME/fvm}/versions/$PIN/bin"
-    if [ -n "$PIN" ] && [ -x "$SDK/flutter" ]; then FLUTTER=("$SDK/flutter"); [ -x "$SDK/dart" ] && DART=("$SDK/dart")
+    # A version name never holds / or ..: one that does could point outside the cache.
+    case $PIN in */*|*..*) SDK_NOTE="the .fvmrc pin '$PIN' is not a Flutter version name" ;; esac
+    if [ -n "$SDK_NOTE" ]; then :
+    elif [ -n "$PIN" ] && [ -x "$SDK/flutter" ]; then FLUTTER=("$SDK/flutter"); [ -x "$SDK/dart" ] && DART=("$SDK/dart")
     elif command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
     else SDK_NOTE="Flutter ${PIN:-?} pinned in .fvmrc is not in ${SDK%/bin} and fvm is not on PATH"
     fi
