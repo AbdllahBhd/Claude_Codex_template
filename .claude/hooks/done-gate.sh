@@ -89,7 +89,7 @@ RAN=""
 # Output that SUGGESTS the environment is down. Never trusted alone: a failure
 # counts as environment-down only if (a) it matches, (b) the log shows no code
 # error markers, and (c) the environment probe confirms it is down.
-ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|connect ENOENT [^ ]*docker\.sock|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
+ENV_DOWN='Cannot connect to the Docker daemon|spawn docker ENOENT|connect ENOENT [^ ]*docker\.sock|could not be found in this WSL|docker: (command )?not found|Docker daemon (is )?not (running|reachable)|service "?[A-Za-z0-9_-]+"? is not running|wp-env (is )?not (running|started)|[Ee]nvironment (is )?not initiali[sz]ed|[Ee]nvironment has not yet been initiali[sz]ed|UNC paths are not supported|CMD\.EXE was started with the above path'
 # Markers of real code findings (tsc, eslint, phpcs, phpunit, dart, pytest...).
 CODE_ERR='error TS[0-9]+|[A-Za-z0-9_./\\-]+\.[A-Za-z]{1,5}[:(][0-9]+([:,][0-9]+)?\)?:? *(error|ERROR|Error|warning)|FOUND [0-9]+ ERRORS?|✖ [0-9]+ problems?|^FAILURES!|^Tests: .*[0-9]+ failed|^E +[A-Za-z]+Error|^ *(error|ERROR|warning|info) [•-] |Some tests failed'
 
@@ -164,20 +164,21 @@ elif [ -f pubspec.yaml ]; then
     # Exit 127 from `--which` = the pinned SDK is not on this machine: no code
     # change fixes that, so it is NOT RUN, not a block. A wrapper without
     # --which fails differently and is simply used.
-    # On success it names the SDK, whose own dart runs pure-Dart members:
-    # `flutter test` cannot run tests that resolve package URIs (CI runs
-    # `dart test`).
+    # On success its last line names the flutter binary (or `fvm flutter`),
+    # whose own dart runs pure-Dart members: `flutter test` cannot run tests
+    # that resolve package URIs (CI runs `dart test`).
     WHICH=$(bash scripts/flutter.sh --which 2>&1)
     case $? in
       127) SDK_NOTE=$WHICH; FLUTTER=() ;;
       0) W=${WHICH##*$'\n'}
-         if [ -x "$W" ]; then [ -x "$(dirname "$W")/dart" ] && DART=("$(dirname "$W")/dart")
+         if [ -f "$W" ] && [ -x "$W" ]; then [ -x "$(dirname "$W")/dart" ] && DART=("$(dirname "$W")/dart")
          elif [ "${W%% *}" = fvm ]; then DART=(fvm dart)
          elif W=$(command -v "${W%% *}") && [ -x "$(dirname "$W")/dart" ]; then DART=("$(dirname "$W")/dart")
          fi ;;
     esac
   elif [ -f .fvmrc ]; then
-    # Never fall back to a global SDK here: it rarely matches the pin.
+    # Never fall back to a global SDK here: it rarely matches the pin. A cache
+    # moved with `fvm config --cache-path` is found only via fvm or FVM_CACHE_PATH.
     PIN=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc | head -1)
     SDK="${FVM_CACHE_PATH:-$HOME/fvm}/versions/$PIN/bin"
     if [ -n "$PIN" ] && [ -x "$SDK/flutter" ]; then FLUTTER=("$SDK/flutter"); [ -x "$SDK/dart" ] && DART=("$SDK/dart")
@@ -194,7 +195,7 @@ elif [ -f pubspec.yaml ]; then
     # A pub workspace root analyzes nothing useful on its own: run each member,
     # Flutter members (and every member when no pinned dart is known) with
     # flutter, pure Dart members with dart (--fatal-infos, as flutter analyze).
-    for m in $MEMBERS; do
+    while IFS= read -r m; do
       if [ ! -d "$m" ]; then   # pub would fail on it too: never skip silently
         RAN="$RAN member-$m"
         CODE_FAILURES="${CODE_FAILURES}${NL}--- workspace member $m is listed in pubspec.yaml but missing ---"
@@ -207,7 +208,7 @@ elif [ -f pubspec.yaml ]; then
         run_gate "analyze ${m//\//-}" in_dir "$m" "${DART[@]}" analyze --fatal-infos
         full && [ -d "$m/test" ] && run_gate "tests ${m//\//-}" in_dir "$m" "${DART[@]}" test
       fi
-    done
+    done <<<"$MEMBERS"
   elif [ ${#FLUTTER[@]} -gt 0 ]; then
     run_gate "analyze" "${FLUTTER[@]}" analyze --no-pub
     full && run_gate "tests" "${FLUTTER[@]}" test

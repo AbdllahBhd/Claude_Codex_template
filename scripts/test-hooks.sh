@@ -575,6 +575,15 @@ printf 'name: ws\nworkspace:\n  - packages/core\n  - packages/gone\n' >"$W/pubsp
 OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 2 ] && has "$OUT" "packages/gone" && ok "listed member missing on disk blocks" || bad "missing member" "rc=$RC $OUT"
 
+: >"$FL"; mkdir -p "$W/packages/my pkg"; printf 'name: mp\nresolution: workspace\n' >"$W/packages/my pkg/pubspec.yaml"
+printf 'name: ws\nworkspace:\n  - packages/core\n  - packages/my pkg\n' >"$W/pubspec.yaml"
+OUT=$(cd "$W" && echo '{}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && grep -q '^dart my pkg analyze' "$FL" && ok "member path with a space is one member" || bad "member space" "rc=$RC $OUT $(cat "$FL")"
+R=$(new_repo); mkdir -p "$R/.claude/hooks/local"
+printf 'echo "Binding has not yet been initialized."; exit 1\n' >"$R/.claude/hooks/local/ft.sh"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" DONE_GATE_ENV_PROBE=false bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && ok "Flutter 'Binding has not yet been initialized' blocks (not wp-env)" || bad "binding init" "rc=$RC $OUT"
+
 echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
 R=$(new_repo); C=$(mktemp)
 touch "$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; mkdir -p "$R/scripts"
