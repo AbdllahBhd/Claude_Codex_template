@@ -329,6 +329,18 @@ assert h["Stop"][0]["hooks"][0].get("timeout")==600, h["Stop"]
 g=[x for x in h["PreToolUse"][0]["hooks"] if x["command"].endswith("guard.sh")][0]
 assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
   [ -z "$E" ] && ok "--apply keeps a project's own field on a template hook (Stop timeout 600), takes the template's other changes" || bad "per-hook fields" "rc=$RC $E"
+  # Per-project lists: .claude/template-exclude (never added) and .claude/template-keep (adapted, kept quietly).
+  T3=$(new_repo); P3=$(new_repo); mkdir -p "$T3/docs" "$T3/.claude/agents" "$T3/.claude/commands" "$T3/.claude/rules"; cp "$TF" "$T3/docs/template-files.md"
+  echo a >"$T3/.claude/agents/a.md"; echo b >"$T3/.claude/agents/b.md"; echo c >"$T3/.claude/commands/cx.md"; echo r >"$T3/.claude/rules/x.md"
+  git -C "$T3" add -A && git -C "$T3" commit -qm one
+  mkdir -p "$P3/.claude"; printf '# vendored elsewhere\r\n.claude/agents/   # whole folder\r\n.claude/commands/c*.md\r\n' >"$P3/.claude/template-exclude"
+  git -C "$P3" add -A && git -C "$P3" commit -qm lists
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main 2>&1); RC=$?
+  { ! has "$OUT" "new               .claude/agents" && ! has "$OUT" "cx.md" && has "$OUT" "new               .claude/rules/x.md" && has "$OUT" "excluded"; } \
+    && ok "template-exclude: prefix and glob entries are not listed as new (CRLF, comments ok)" || bad "exclude dry" "rc=$RC $OUT"
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
+  [ ! -e "$P3/.claude/agents" ] && [ ! -e "$P3/.claude/commands/cx.md" ] && [ -f "$P3/.claude/rules/x.md" ] \
+    && ok "template-exclude: --apply never adds excluded paths" || bad "exclude apply" "rc=$RC $OUT"
 fi
 
 echo "== v3 /next command"

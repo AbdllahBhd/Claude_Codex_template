@@ -11,6 +11,9 @@
 #   updated           project copy equals an older template version -> safe to replace
 #   locally modified  project copy matches no template version -> kept, diff shown
 #   removed upstream  the template dropped it -> listed, never deleted
+# Paths matching .claude/template-exclude (project-owned, one entry per line:
+# `dir/` = prefix, else a glob; `#` comments) are skipped entirely: never
+# added, updated or listed — for template parts a project does without.
 # .claude/settings.json is "merged" (three-way against the last synced
 # template version): template hooks + permissions arrive, project-only hooks and
 # allow rules stay, rules the project removed stay removed, the project keeps env
@@ -80,9 +83,25 @@ through_symlink() { # $1 = path
   return 1
 }
 
+# Entries of a project list file, without comments, CRLF or a leading ./
+list_entries() { # $1 = file
+  [ -f "$1" ] && sed -e 's/\r$//' -e 's/[[:space:]]*#.*$//' -e 's/[[:space:]]*$//' -e 's#^\./##' -e '/^$/d' "$1"
+}
+listed() { # $1 = path, $2 = entries
+  local g
+  [ -n "$2" ] || return 1
+  while IFS= read -r g; do
+    # shellcheck disable=SC2053  # $g is a glob on purpose
+    case $g in */) [[ $1 == "$g"* ]] && return 0 ;; *) [[ $1 == $g ]] && return 0 ;; esac
+  done <<<"$2"
+  return 1
+}
+EXCLUDE=$(list_entries .claude/template-exclude)
+
 # -z everywhere: core.quotePath would otherwise quote non-ASCII names.
-NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); SETTINGS=""
+NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); SETTINGS=""; EXCLUDED=0
 while IFS= read -r -d '' path; do
+  listed "$path" "$EXCLUDE" && { EXCLUDED=$((EXCLUDED + 1)); continue; }
   case "$(owner_of "$path")" in
     template) ;;
     merged) [ "$path" = .claude/settings.json ] || continue
@@ -101,6 +120,7 @@ done < <(git -C "$TPL" ls-tree -r -z --name-only "$COMMIT")
 # Template-owned project files the template no longer ships (but once did).
 while IFS= read -r -d '' path; do
   [ "$(owner_of "$path")" = template ] || continue
+  listed "$path" "$EXCLUDE" && continue
   git -C "$TPL" cat-file -e "$COMMIT:$path" 2>/dev/null && continue
   [ -n "$(git -C "$TPL" log -1 --format=%H "$COMMIT" -- "$path")" ] && REMOVED+=("$path")
 done < <(git ls-files -z)
@@ -210,6 +230,7 @@ if [ -n "$SETTINGS_CHANGED" ]; then
   [ -f .claude/settings.json ] && diff -u --label "project/.claude/settings.json" --label "merged" \
     .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
 fi
+[ "$EXCLUDED" -gt 0 ] && echo "excluded          $EXCLUDED template path(s) listed in .claude/template-exclude"
 for p in ${SYMLINKED[@]+"${SYMLINKED[@]}"}; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
 for p in ${REMOVED[@]+"${REMOVED[@]}"}; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
 for p in ${MODIFIED[@]+"${MODIFIED[@]}"}; do

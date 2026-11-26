@@ -22,6 +22,7 @@ The first matching row wins (`*` also matches `/`). Keep specific rows above glo
 | `.claude/settings.json` | merged | template: hooks, permissions · project: env |
 | `.claude/settings.local.json` | project | git-ignored, machine-local |
 | `.claude/template-version` | project | written by sync-template.sh |
+| `.claude/template-exclude` | project | template paths sync-template never adds |
 | `.claude/gate-core-paths` | project | |
 | `.claude/gate-core-paths.example` | template | |
 | `.claude/launch.json` | project | |
