@@ -124,7 +124,10 @@ run_gate() { # $1 = label, rest = command
       ENV_FAILURES="$ENV_FAILURES $label"
       [ -z "$ENV_DETAIL" ] && ENV_DETAIL=$(tail -3 "$log")
     else
-      CODE_FAILURES="${CODE_FAILURES}${NL}--- $label FAILED ($*) ---${NL}$(tail -30 "$log")"
+      # A local gate often bundles several checks; 30 lines would cut the
+      # labels of the earliest failing ones.
+      local keep=30; [[ $label == local-* ]] && keep=100
+      CODE_FAILURES="${CODE_FAILURES}${NL}--- $label FAILED ($*) ---${NL}$(tail -"$keep" "$log")"
     fi
   fi
 }

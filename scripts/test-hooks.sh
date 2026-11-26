@@ -125,6 +125,10 @@ OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0" b
 [ $RC -eq 0 ] && [ -z "$OUT" ] && ok "no stack and no DONE_GATE_CMD: silent pass" || bad "no stack" "rc=$RC $OUT"
 OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0/missing" DONE_GATE_CMD="exit 1" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "systemMessage" && ok "unreachable project dir -> NOT RUN to the user, no block" || bad "bad ROOT" "rc=$RC $OUT"
+mkdir -p "$R0/.claude/hooks/local"
+printf 'echo "CHECK-A FAILED: stages"; for i in $(seq 1 40); do echo "a-detail $i"; done; echo "CHECK-B FAILED: unity"; exit 1\n' >"$R0/.claude/hooks/local/areas.sh"
+OUT=$(cd "$R0" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R0" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 2 ] && has "$OUT" "CHECK-A FAILED" && has "$OUT" "CHECK-B FAILED" && ok "long local-* gate log keeps its first failure label" || bad "local tail" "rc=$RC $(printf '%s' "$OUT" | head -3)"
 if command -v npm >/dev/null 2>&1; then
   R2=$(new_repo)
   printf '{"name":"t","version":"1.0.0","scripts":{"lint":"node -e \\"console.log(String.fromCharCode(108)+\\x27int.js:2 error bad\\x27);process.exit(1)\\""}}\n' >"$R2/package.json"
