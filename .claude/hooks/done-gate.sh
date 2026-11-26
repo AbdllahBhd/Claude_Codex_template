@@ -9,8 +9,9 @@
 #   - When the ENVIRONMENT is down (Docker, wp-env, UNC paths), it does NOT
 #     block: it reports "NOT RUN" to the user instead of sending Claude off
 #     to repair containers.
-#   - Flutter/Dart: `.fvmrc` → `scripts/flutter.sh` if present, else `fvm
-#     flutter`/`fvm dart`; a pub workspace root analyzes each member package.
+#   - Flutter/Dart: `.fvmrc` → `scripts/flutter.sh` if present, else the FVM
+#     cache (`${FVM_CACHE_PATH:-~/fvm}/versions/<pin>`), else `fvm`; never an
+#     unpinned SDK (NOT RUN). A pub workspace root analyzes each member package.
 #
 # Configuration (env vars, e.g. in .claude/settings.json "env"):
 #   DONE_GATE_MODE=manual   owner runs gates by hand (localhost-first projects)
@@ -162,11 +163,18 @@ elif [ -f pubspec.yaml ]; then
     # change fixes that, so it is NOT RUN, not a block. A wrapper without
     # --which fails differently and is simply used.
     WHICH=$(bash scripts/flutter.sh --which 2>&1); [ $? -eq 127 ] && { SDK_NOTE=$WHICH; FLUTTER=(); }
-  elif [ -f .fvmrc ] && command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
+  elif [ -f .fvmrc ]; then
+    # Never fall back to a global SDK here: it rarely matches the pin.
+    PIN=$(sed -n 's/.*"flutter"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .fvmrc | head -1)
+    SDK="${FVM_CACHE_PATH:-$HOME/fvm}/versions/$PIN/bin"
+    if [ -n "$PIN" ] && [ -x "$SDK/flutter" ]; then FLUTTER=("$SDK/flutter"); [ -x "$SDK/dart" ] && DART=("$SDK/dart")
+    elif command -v fvm >/dev/null 2>&1; then FLUTTER=(fvm flutter); DART=(fvm dart)
+    else SDK_NOTE="Flutter ${PIN:-?} pinned in .fvmrc is not in ${SDK%/bin} and fvm is not on PATH"
+    fi
   elif command -v flutter >/dev/null 2>&1; then FLUTTER=(flutter)
   fi
-  # The wrapper pins dart too: never pair it with the global dart.
-  [ ${#DART[@]} -eq 0 ] && [ "${FLUTTER[0]:-}" != bash ] && command -v dart >/dev/null 2>&1 && DART=(dart)
+  # A pinned SDK pins dart too: never pair it with the global dart.
+  [ ! -f .fvmrc ] && [ ${#DART[@]} -eq 0 ] && command -v dart >/dev/null 2>&1 && DART=(dart)
   MEMBERS=$(workspace_members)
   if [ -n "$SDK_NOTE" ]; then :
   elif [ -n "$MEMBERS" ] && [ $(( ${#DART[@]} + ${#FLUTTER[@]} )) -gt 0 ]; then

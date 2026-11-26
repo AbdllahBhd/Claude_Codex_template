@@ -484,24 +484,35 @@ FF=$(mktemp -d); FL="$FF/calls.log"
 for b in fvm flutter dart; do printf '#!/usr/bin/env bash\necho "%s $*" >>"%s"\nexit 0\n' "$b" "$FL" >"$FF/$b"; chmod +x "$FF/$b"; done
 BASEP=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -e flutter -e fvm -e dart | paste -sd: -)
 R=$(new_repo); printf 'name: app\n' >"$R/pubspec.yaml"; echo '{"flutter":"3.24.0"}' >"$R/.fvmrc"
-OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^fvm flutter analyze' "$FL" && ! grep -q '^flutter ' "$FL" && ok ".fvmrc: gate runs fvm flutter analyze, not plain flutter" || bad "fvm" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; mkdir -p "$R/scripts"; printf '#!/usr/bin/env bash\necho "wrapper $*" >>"%s"\n' "$FL" >"$R/scripts/flutter.sh"; echo c >>"$R/file.txt"
-OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$R" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^wrapper analyze' "$FL" && ! grep -q '^fvm ' "$FL" && ok ".fvmrc + scripts/flutter.sh: gate uses the wrapper" || bad "wrapper" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; printf '#!/usr/bin/env bash\necho "dart $(basename "$PWD") $*" >>"%s"\nexit 0\n' "$FL" >"$FF/dart"
 W=$(new_repo); mkdir -p "$W/packages/core" "$W/apps/web"
 printf 'name: ws\nenvironment:\n  sdk: ^3.6.0\nworkspace:\n  - packages/core\n  - apps/web\n' >"$W/pubspec.yaml"
 printf 'name: core\nresolution: workspace\n' >"$W/packages/core/pubspec.yaml"; printf 'name: web\nresolution: workspace\n' >"$W/apps/web/pubspec.yaml"
-OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 grep -q '^dart core analyze' "$FL" && grep -q '^dart web analyze' "$FL" && ok "pub workspace: dart analyze runs in every member" || bad "workspace" "rc=$RC $OUT $(cat "$FL")"
 : >"$FL"; mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.24.0"}' >"$W/.fvmrc"
 printf '#!/usr/bin/env bash\necho "wrapper $(basename "$PWD") $*" >>"%s"\n' "$FL" >"$W/scripts/flutter.sh"
 printf 'name: web\nresolution: workspace\ndependencies:\n  flutter:\n    sdk: flutter\n' >"$W/apps/web/pubspec.yaml"; echo c >>"$W/file.txt"
-OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+OUT=$(cd "$W" && echo '{"stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$W" DONE_GATE_FULL=1 FVM_CACHE_PATH="$FF" PATH="$FF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 { grep -q '^wrapper core analyze --no-pub' "$FL" && grep -q '^wrapper web analyze --no-pub' "$FL" && ! grep -q '^dart ' "$FL"; } \
   && ok ".fvmrc wrapper + workspace: every member analyzed with the pinned wrapper" || bad "fvm workspace analyze" "rc=$RC $OUT $(cat "$FL")"
 grep -q '^wrapper core test' "$FL" && grep -q '^wrapper web test' "$FL" && ok "workspace + DONE_GATE_FULL: tests run per member" || bad "workspace tests" "rc=$RC $(cat "$FL")"
+
+echo "== v3 done-gate FVM cache, never an unpinned SDK"
+FC=$(mktemp -d); mkdir -p "$FC/versions/3.47.5/bin"; : >"$FL"
+for b in flutter dart; do printf '#!/usr/bin/env bash\necho "cache-%s $*" >>"%s"\nexit 0\n' "$b" "$FL" >"$FC/versions/3.47.5/bin/$b"; chmod +x "$FC/versions/3.47.5/bin/$b"; done
+GF=$(mktemp -d); printf '#!/usr/bin/env bash\necho "global-flutter $*" >>"%s"\n' "$FL" >"$GF/flutter"; chmod +x "$GF/flutter"
+R=$(new_repo); printf 'name: app\n' >"$R/pubspec.yaml"; echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FC" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+grep -q '^cache-flutter analyze' "$FL" && ! grep -q '^global-flutter' "$FL" && ok ".fvmrc, no wrapper, no fvm: pinned SDK from FVM_CACHE_PATH" || bad "fvm cache" "rc=$RC $OUT $(cat "$FL")"
+: >"$FL"; echo c >>"$R/file.txt"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$(mktemp -d)" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && ! grep -q '^global-flutter' "$FL" && ok "pin not installed: NOT RUN, never the global flutter" || bad "unpinned sdk" "rc=$RC $OUT $(cat "$FL")"
 
 echo "== v3 done-gate pinned-Flutter wrapper (ported from DoWee)"
 R=$(new_repo); C=$(mktemp)
