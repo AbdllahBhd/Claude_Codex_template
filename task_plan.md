@@ -24,7 +24,7 @@
 
 **Objective:** fix audit findings 1, 2, 4 and 5 before any project re-syncs onto `.claude/template-exclude` / `.claude/template-keep`. Finding 3 is an owner decision and is out of scope.
 
-- [ ] **S1 — Keep, exclude and done-gate hardening.** `sync-template.sh` keeps a keep-listed file only when it matches no template version. It names every excluded or kept path, and warns when a path is `.claude/settings.json` or under `.claude/hooks/` (not `local/`). `done-gate.sh` rejects an `.fvmrc` pin with `/` or `..`, and reports NOT RUN when `mktemp -d` fails.
+- [x] **S1 — Keep, exclude and done-gate hardening.** `sync-template.sh` keeps a keep-listed file only when it matches no template version. It names every excluded or kept path, and warns when a path is `.claude/settings.json` or under `.claude/hooks/` (not `local/`). `done-gate.sh` rejects an `.fvmrc` pin with `/` or `..`, and reports NOT RUN when `mktemp -d` fails.
   Done when: (1) the new `scripts/test-hooks.sh` cases (keep on an old version is updated, keep on a modified file is kept, paths are listed, the hooks warning, bad pin = NOT RUN) went red → green; (2) `bash scripts/test-hooks.sh 2>&1 | tail -1` prints `failed: 0`; (3) no files changed outside `scripts/sync-template.sh`, `scripts/test-hooks.sh`, `.claude/hooks/done-gate.sh`, `task_plan.md`, `README.md`.
   Amendment (review): `README.md` added to the fence, because its sync paragraph still says excluded paths are never listed and kept files are only counted.
 
@@ -53,5 +53,9 @@
 | R2 | `security-auditor` (opus) on `git diff 918b981..develop -- .claude/hooks scripts` | no Critical/High; 3 Low + 2 Info, carried forward | 8d432c1 |
 | R3 | `git log develop -1 --oneline` | `05fe27f Merge branch 'chore/release-t11' into develop` | 05fe27f |
 | R4 | `git ls-remote origin refs/heads/main refs/heads/develop` | both 05fe27f | 05fe27f |
+| S1 | new tests before each fix | red: 3 sync + 1 bad-pin FAIL; review round: 3 FAIL | bba80e5, 9bc3e0b |
+| S1 | `bash scripts/test-hooks.sh 2>&1 \| tail -1` | `passed: 200  failed: 0` | 9bc3e0b |
+| S1 | `code-reviewer` (opus) on `05fe27f..bba80e5`, then the fix diff `bba80e5..9bc3e0b` | 3 Warnings + nits fixed; re-check: approve, 2 nits skipped (cost-only double walk; pinning via keep is gone by design) | 9bc3e0b |
+| S1 | `git diff --name-only 05fe27f..HEAD` | only the fence's 5 files | 9bc3e0b |
 
 /goal every task in task_plan.md is checked off per its own "Done when", and scripts/test-hooks.sh reports failed: 0
