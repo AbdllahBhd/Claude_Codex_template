@@ -341,6 +341,13 @@ assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
   OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
   [ ! -e "$P3/.claude/agents" ] && [ ! -e "$P3/.claude/commands/cx.md" ] && [ -f "$P3/.claude/rules/x.md" ] \
     && ok "template-exclude: --apply never adds excluded paths" || bad "exclude apply" "rc=$RC $OUT"
+  echo k >"$T3/.claude/rules/k.md"; echo y >"$T3/.claude/rules/y.md"; git -C "$T3" add -A && git -C "$T3" commit -qm two
+  echo "adapted k" >"$P3/.claude/rules/k.md"; echo "adapted y" >"$P3/.claude/rules/y.md"; echo ".claude/rules/k.md" >"$P3/.claude/template-keep"
+  git -C "$P3" add -A && git -C "$P3" commit -qm adapted
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
+  { ! has "$OUT" "locally modified  .claude/rules/k.md" && has "$OUT" "locally modified  .claude/rules/y.md" && has "$OUT" "template-keep" \
+    && [ "$(cat "$P3/.claude/rules/k.md")" = "adapted k" ]; } \
+    && ok "template-keep: listed adapted file kept without the locally-modified advice" || bad "keep list" "rc=$RC $OUT"
 fi
 
 echo "== v3 /next command"

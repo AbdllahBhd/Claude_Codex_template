@@ -14,6 +14,8 @@
 # Paths matching .claude/template-exclude (project-owned, one entry per line:
 # `dir/` = prefix, else a glob; `#` comments) are skipped entirely: never
 # added, updated or listed — for template parts a project does without.
+# Paths matching .claude/template-keep (same format) are adapted on purpose:
+# when they differ from the template they are kept and only counted.
 # .claude/settings.json is "merged" (three-way against the last synced
 # template version): template hooks + permissions arrive, project-only hooks and
 # allow rules stay, rules the project removed stay removed, the project keeps env
@@ -97,9 +99,10 @@ listed() { # $1 = path, $2 = entries
   return 1
 }
 EXCLUDE=$(list_entries .claude/template-exclude)
+KEEP=$(list_entries .claude/template-keep)
 
 # -z everywhere: core.quotePath would otherwise quote non-ASCII names.
-NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); SETTINGS=""; EXCLUDED=0
+NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); SETTINGS=""; EXCLUDED=0; KEPT=0
 while IFS= read -r -d '' path; do
   listed "$path" "$EXCLUDE" && { EXCLUDED=$((EXCLUDED + 1)); continue; }
   case "$(owner_of "$path")" in
@@ -114,6 +117,7 @@ while IFS= read -r -d '' path; do
   tblob=$(git -C "$TPL" rev-parse "$COMMIT:$path")
   pblob=$(git hash-object -- "$path")
   [ "$tblob" = "$pblob" ] && continue
+  listed "$path" "$KEEP" && { KEPT=$((KEPT + 1)); continue; }
   if known_version "$path" "$pblob"; then UPDATED+=("$path"); else MODIFIED+=("$path"); fi
 done < <(git -C "$TPL" ls-tree -r -z --name-only "$COMMIT")
 
@@ -230,6 +234,7 @@ if [ -n "$SETTINGS_CHANGED" ]; then
   [ -f .claude/settings.json ] && diff -u --label "project/.claude/settings.json" --label "merged" \
     .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
 fi
+[ "$KEPT" -gt 0 ] && echo "kept              $KEPT adapted file(s) listed in .claude/template-keep"
 [ "$EXCLUDED" -gt 0 ] && echo "excluded          $EXCLUDED template path(s) listed in .claude/template-exclude"
 for p in ${SYMLINKED[@]+"${SYMLINKED[@]}"}; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
 for p in ${REMOVED[@]+"${REMOVED[@]}"}; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
