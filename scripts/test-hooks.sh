@@ -208,17 +208,25 @@ OUT=$(sn "$R/wp-content/themes/t/template/single.html"); has "$OUT" ui-quality &
 
 echo "== v3 file ownership"
 # Every tracked path must have an owner in docs/template-files.md (first match
-# wins); sync-template.sh relies on it to know what it may overwrite.
-TF="$TEMPLATE/docs/template-files.md"
-if [ -f "$TF" ]; then
-  GLOBS=$(sed -n 's/^| `\([^`]*\)` | \(template\|project\|merged\) |.*/\1/p' "$TF")
-  UNLISTED=""
+# wins); sync-template.sh relies on it to know what it may overwrite. A synced
+# project (stamped .claude/template-version) has its own files: skip there.
+ownership_audit() { # $1 = repo root; prints "skip", "" (all owned) or the unlisted paths
+  local root=$1 tf="$1/docs/template-files.md" globs unlisted="" f g hit
+  [ -f "$root/.claude/template-version" ] && { echo skip; return; }
+  [ -f "$tf" ] || { echo " (no docs/template-files.md)"; return; }
+  globs=$(sed -n 's/^| `\([^`]*\)` | \(template\|project\|merged\) |.*/\1/p' "$tf")
   while IFS= read -r f; do
-    hit=""; while IFS= read -r g; do [[ $f == $g ]] && { hit=1; break; }; done <<<"$GLOBS"
-    [ -z "$hit" ] && UNLISTED="$UNLISTED $f"
-  done < <(git -C "$TEMPLATE" ls-files)
-  [ -z "$UNLISTED" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$UNLISTED"
-else bad "docs/template-files.md exists"; fi
+    hit=""; while IFS= read -r g; do [[ $f == $g ]] && { hit=1; break; }; done <<<"$globs"
+    [ -z "$hit" ] && unlisted="$unlisted $f"
+  done < <(git -C "$root" ls-files)
+  echo "$unlisted"
+}
+TF="$TEMPLATE/docs/template-files.md"
+U=$(ownership_audit "$TEMPLATE")
+[ -z "$U" ] && ok "every tracked file has an owner in docs/template-files.md" || bad "unlisted paths" "$U"
+R=$(new_repo); mkdir -p "$R/docs" "$R/.claude"; cp "$TEMPLATE/docs/template-files.md" "$R/docs/"
+echo "commit x" >"$R/.claude/template-version"; touch "$R/app.unlisted"; git -C "$R" add -A; git -C "$R" commit -qm p
+U=$(ownership_audit "$R"); [ "$U" = skip ] && ok "ownership audit skipped in a synced project" || bad "audit in project" "$U"
 
 echo "== v3 sync-template"
 SYNC="$TEMPLATE/scripts/sync-template.sh"
