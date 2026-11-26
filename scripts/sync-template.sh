@@ -70,10 +70,13 @@ owner_of() { # $1 = path
 # Was this project copy ever shipped by the template? With a stamp, compare to
 # the stamped version; without one, to every historical version of the path.
 known_version() { # $1 = path, $2 = project blob
-  local c
   if [ -n "$BASE" ] && git -C "$TPL" cat-file -e "$BASE:$1" 2>/dev/null; then
     [ "$(git -C "$TPL" rev-parse "$BASE:$1")" = "$2" ]; return
   fi
+  any_version "$1" "$2"
+}
+any_version() { # $1 = path, $2 = project blob
+  local c
   for c in $(git -C "$TPL" log --format=%H "$COMMIT" -- "$1"); do
     [ "$(git -C "$TPL" rev-parse -q --verify "$c:$1" 2>/dev/null)" = "$2" ] && return 0
   done
@@ -91,10 +94,11 @@ through_symlink() { # $1 = path
 list_entries() { # $1 = file
   [ -f "$1" ] && sed -e 's/\r$//' -e 's/[[:space:]]*#.*$//' -e 's/[[:space:]]*$//' -e 's#^\./##' -e '/^$/d' "$1"
 }
-listed() { # $1 = path, $2 = entries
+listed() { # $1 = path, $2 = entries; sets MATCHED to the first matching entry
   local g
   [ -n "$2" ] || return 1
   while IFS= read -r g; do
+    MATCHED=$g
     # shellcheck disable=SC2053  # $g is a glob on purpose
     case $g in */) [[ $1 == "$g"* ]] && return 0 ;; *) [[ $1 == $g ]] && return 0 ;; esac
   done <<<"$2"
@@ -104,15 +108,16 @@ EXCLUDE=$(list_entries .claude/template-exclude)
 KEEP=$(list_entries .claude/template-keep)
 
 # -z everywhere: core.quotePath would otherwise quote non-ASCII names.
-NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); EXCLUDED=(); KEPT=(); SETTINGS=""
+NEW=(); UPDATED=(); MODIFIED=(); REMOVED=(); SYMLINKED=(); EXCLUDED=(); EXCLUDED_BY=(); KEPT=(); SETTINGS=""; KEEP_SETTINGS=""
 while IFS= read -r -d '' path; do
   owner=$(owner_of "$path")
   [ "$owner" = project ] && continue
-  listed "$path" "$EXCLUDE" && { EXCLUDED+=("$path"); continue; }
+  listed "$path" "$EXCLUDE" && { EXCLUDED+=("$path"); EXCLUDED_BY+=("$MATCHED"); continue; }
   case "$owner" in
     template) ;;
     merged) [ "$path" = .claude/settings.json ] || continue
             if through_symlink "$path"; then SYMLINKED+=("$path"); else SETTINGS=1; fi
+            listed "$path" "$KEEP" && KEEP_SETTINGS=1
             continue ;;
     *) continue ;;
   esac
@@ -121,9 +126,11 @@ while IFS= read -r -d '' path; do
   tblob=$(git -C "$TPL" rev-parse "$COMMIT:$path")
   pblob=$(git hash-object -- "$path")
   [ "$tblob" = "$pblob" ] && continue
-  # Keep covers real adaptations only: a copy of an old template version updates.
+  # Keep covers real adaptations only: a copy of any old template version
+  # updates, even one older than the stamp (a keep list may have held it there).
   if known_version "$path" "$pblob"; then UPDATED+=("$path")
-  elif listed "$path" "$KEEP"; then KEPT+=("$path")
+  elif listed "$path" "$KEEP"; then
+    if any_version "$path" "$pblob"; then UPDATED+=("$path"); else KEPT+=("$path"); fi
   else MODIFIED+=("$path"); fi
 done < <(git -C "$TPL" ls-tree -r -z --name-only "$COMMIT")
 
@@ -243,14 +250,14 @@ if [ -n "$SETTINGS_CHANGED" ]; then
     .claude/settings.json "$TMP/merged-settings.json" | head -60 | sed 's/^/    /'
 fi
 for p in ${KEPT[@]+"${KEPT[@]}"}; do echo "kept              $p  (adapted, listed in .claude/template-keep)"; done
-for p in ${EXCLUDED[@]+"${EXCLUDED[@]}"}; do echo "excluded          $p  (listed in .claude/template-exclude)"; done
-# A skipped safety hook or settings.json silently stops its fixes from arriving.
-for p in ${EXCLUDED[@]+"${EXCLUDED[@]}"} ${KEPT[@]+"${KEPT[@]}"}; do
-  case $p in
-    .claude/settings.json|.claude/hooks/*)
-      echo "WARNING           $p is skipped by .claude/template-exclude/-keep: its safety-hook updates no longer arrive. Prefer .claude/hooks/local/ or settings.json env." ;;
-  esac
-done
+# One line per entry, not per path: a whole-folder exclude covers hundreds.
+if [ ${#EXCLUDED[@]} -gt 0 ]; then
+  while IFS= read -r g; do
+    n=$(printf '%s\n' "${EXCLUDED_BY[@]}" | grep -cxF -- "$g")
+    [ "$n" -gt 0 ] && echo "excluded          $g  ($n path(s), listed in .claude/template-exclude)"
+  done <<<"$(printf '%s\n' "$EXCLUDE" | awk '!seen[$0]++')"
+fi
+[ -n "$KEEP_SETTINGS" ] && echo "note              .claude/settings.json in .claude/template-keep has no effect: it is always merged"
 for p in ${SYMLINKED[@]+"${SYMLINKED[@]}"}; do echo "skipped (symlink) $p  (a symlinked path may point outside the project — update it by hand)"; done
 for p in ${REMOVED[@]+"${REMOVED[@]}"}; do echo "removed upstream  $p  (kept — delete it yourself if unused)"; done
 for p in ${MODIFIED[@]+"${MODIFIED[@]}"}; do
@@ -258,6 +265,18 @@ for p in ${MODIFIED[@]+"${MODIFIED[@]}"}; do
   git -C "$TPL" show "$COMMIT:$p" >"$TMP/tpl-file"
   diff -u --label "template/$p" --label "project/$p" "$TMP/tpl-file" "$p" | head -40 | sed 's/^/    /'
 done
+# Last, so it is not buried: a skipped safety hook or settings.json stops its fixes arriving.
+skip_warn() { # $1 = list file, $2.. = paths
+  local list=$1 p; shift
+  for p in "$@"; do
+    case $p in
+      .claude/settings.json|.claude/hooks/*)
+        echo "WARNING           $p is in $list: template hook/permission fixes for it no longer arrive. Prefer .claude/hooks/local/ or settings.json env." ;;
+    esac
+  done
+}
+skip_warn .claude/template-exclude ${EXCLUDED[@]+"${EXCLUDED[@]}"}
+skip_warn .claude/template-keep ${KEPT[@]+"${KEPT[@]}"}
 
 CHANGES=$(( ${#NEW[@]} + ${#UPDATED[@]} ))
 [ -n "$SETTINGS_CHANGED" ] && CHANGES=$((CHANGES + 1))

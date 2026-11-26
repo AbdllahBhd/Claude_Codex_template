@@ -355,8 +355,9 @@ assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
   { ! has "$OUT" "locally modified  .claude/rules/k.md" && has "$OUT" "locally modified  .claude/rules/y.md" && has "$OUT" "template-keep" \
     && [ "$(cat "$P3/.claude/rules/k.md")" = "adapted k" ]; } \
     && ok "template-keep: listed adapted file kept without the locally-modified advice" || bad "keep list" "rc=$RC $OUT"
-  { has "$OUT" "kept              .claude/rules/k.md" && has "$OUT" "excluded          .claude/agents/a.md" && has "$OUT" "excluded          .claude/commands/cx.md"; } \
-    && ok "template-keep/exclude: each skipped path is named" || bad "skipped paths named" "rc=$RC $OUT"
+  { has "$OUT" "kept              .claude/rules/k.md" && has "$OUT" "excluded          .claude/agents/  (2 path(s)" \
+    && has "$OUT" "excluded          .claude/commands/c*.md  (1 path(s)" && ! has "$OUT" "agents/a.md"; } \
+    && ok "template-keep names each kept path; template-exclude names each entry with its path count" || bad "skipped paths named" "rc=$RC $OUT"
   # Keep applies only to a real adaptation: a copy still equal to an old template version updates.
   echo "o v1" >"$T3/.claude/rules/o.md"; git -C "$T3" add -A && git -C "$T3" commit -qm three
   echo "o v1" >"$P3/.claude/rules/o.md"; printf '.claude/rules/k.md\n.claude/rules/o.md\n' >"$P3/.claude/template-keep"
@@ -365,14 +366,27 @@ assert g.get("timeout")==30, g' "$P2/.claude/settings.json" 2>&1)
   OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
   { [ "$(cat "$P3/.claude/rules/o.md")" = "o v2" ] && [ "$(cat "$P3/.claude/rules/k.md")" = "adapted k" ] && has "$OUT" "updated           .claude/rules/o.md"; } \
     && ok "template-keep: listed file equal to an old template version is updated, a modified one kept" || bad "keep stale" "rc=$RC $OUT"
+  # Stamped project: a kept copy equal to a version older than the stamp updates too.
+  echo "s v1" >"$T3/.claude/rules/s.md"; git -C "$T3" add -A && git -C "$T3" commit -qm five
+  echo "s v1" >"$P3/.claude/rules/s.md"; echo ".claude/rules/s.md" >>"$P3/.claude/template-keep"
+  echo "s v2" >"$T3/.claude/rules/s.md"; git -C "$T3" add -A && git -C "$T3" commit -qm six
+  printf 'commit %s\nref main\n' "$(git -C "$T3" rev-parse HEAD)" >"$P3/.claude/template-version"; git -C "$P3" add -A && git -C "$P3" commit -qm s
+  echo "s v3" >"$T3/.claude/rules/s.md"; git -C "$T3" add -A && git -C "$T3" commit -qm seven
+  OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main --apply 2>&1); RC=$?
+  [ "$(cat "$P3/.claude/rules/s.md")" = "s v3" ] && [ "$(cat "$P3/.claude/rules/k.md")" = "adapted k" ] \
+    && ok "template-keep, stamped project: copy of a pre-stamp template version is updated" || bad "keep stale stamped" "rc=$RC $OUT"
   # Exclude/keep on a safety hook or settings.json freezes its updates: warn loudly.
-  mkdir -p "$T3/.claude/hooks"; echo g >"$T3/.claude/hooks/g.sh"; echo '{}' >"$T3/.claude/settings.json"
-  git -C "$T3" add -A && git -C "$T3" commit -qm hooks
-  printf '.claude/hooks/*\n.claude/settings.json\n' >>"$P3/.claude/template-exclude"; git -C "$P3" add -A && git -C "$P3" commit -qm ex
+  mkdir -p "$T3/.claude/hooks/local" "$P3/.claude/hooks"; echo g >"$T3/.claude/hooks/g.sh"; echo kh >"$T3/.claude/hooks/kh.sh"
+  echo l >"$T3/.claude/hooks/local/l.sh"; echo '{}' >"$T3/.claude/settings.json"; git -C "$T3" add -A && git -C "$T3" commit -qm hooks
+  echo "my kh" >"$P3/.claude/hooks/kh.sh"; echo ".claude/hooks/kh.sh" >>"$P3/.claude/template-keep"
+  printf '.claude/hooks/g*\n.claude/hooks/local/\n.claude/settings.json\n' >>"$P3/.claude/template-exclude"; git -C "$P3" add -A && git -C "$P3" commit -qm ex
   OUT=$(cd "$P3" && bash "$SYNC" "$T3" --ref main 2>&1); RC=$?
-  { printf '%s\n' "$OUT" | grep -q '^WARNING.*\.claude/hooks/g\.sh' && printf '%s\n' "$OUT" | grep -q '^WARNING.*\.claude/settings\.json' \
-    && ! printf '%s\n' "$OUT" | grep -q '^WARNING.*agents'; } \
-    && ok "template-exclude on .claude/hooks/* and settings.json: loud warning naming each path" || bad "hook exclude warning" "rc=$RC $OUT"
+  W=$(printf '%s\n' "$OUT" | grep '^WARNING')
+  { printf '%s\n' "$W" | grep -q 'hooks/g\.sh.*template-exclude' && printf '%s\n' "$W" | grep -q 'hooks/kh\.sh.*template-keep' \
+    && printf '%s\n' "$W" | grep -q 'settings\.json.*template-exclude' && ! has "$W" agents \
+    && printf '%s\n' "$OUT" | tail -2 | head -1 | grep -q '^WARNING'; } \
+    && ok "exclude/keep on a hook or settings.json: WARNING per path naming its list, at the end of the report" || bad "hook skip warning" "rc=$RC $OUT"
+  ! has "$OUT" "local/l.sh" && ok "template-exclude: a project-owned path matching an entry is not named" || bad "project-owned excluded" "$OUT"
 fi
 
 echo "== v3 /next command"
@@ -574,6 +588,9 @@ printf '#!/usr/bin/env bash\necho "evil-flutter $*" >>"%s"\n' "$FL" >"$FE/evil/b
 echo '{"flutter":"../evil"}' >"$R/.fvmrc"
 OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" FVM_CACHE_PATH="$FE" PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
 [ $RC -eq 0 ] && has "$OUT" "NOT RUN" && [ ! -s "$FL" ] && ok ".fvmrc pin with / or ..: NOT RUN, no binary outside the FVM cache runs" || bad "bad pin" "rc=$RC $OUT $(cat "$FL")"
+echo '{"flutter":"3.47.5"}' >"$R/.fvmrc"; echo c >>"$R/file.txt"
+OUT=$(cd "$R" && echo '{}' | CLAUDE_PROJECT_DIR="$R" TMPDIR=/nonexistent-done-gate-dir PATH="$GF:$BASEP" bash "$HOOKS/done-gate.sh" 2>&1); RC=$?
+[ $RC -eq 0 ] && has "$OUT" "NOT RUN" && has "$OUT" "mktemp" && ok "mktemp -d fails: NOT RUN, no predictable /tmp directory" || bad "mktemp fallback" "rc=$RC $OUT"
 
 echo "== v3 done-gate wrapper SDK's dart for pure-Dart members"
 : >"$FL"; W=$(new_repo); mkdir -p "$W/scripts" "$W/packages/core/test" "$W/apps/web/test"; echo '{"flutter":"3.47.5"}' >"$W/.fvmrc"

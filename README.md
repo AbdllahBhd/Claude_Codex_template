@@ -642,9 +642,11 @@ use. The `testing-patterns` skill holds the browser and device checklists.
   files ([`docs/template-files.md`](docs/template-files.md)). Review
   `git diff`, run the tests, commit. Two optional project files tune it, one
   entry per line (`dir/` is a prefix, anything else a glob): paths in
-  `.claude/template-exclude` are never added or listed (template parts the
-  project does without), and files in `.claude/template-keep` are adapted on
-  purpose, so they are kept and only counted. A project that predates v3 has no
+  `.claude/template-exclude` are never added or updated (template parts the
+  project does without; each entry is named with its path count), and files in
+  `.claude/template-keep` are adapted on purpose, so they are kept and named
+  without a diff. A kept copy that still equals an old template version is
+  updated. A WARNING names any hook or `settings.json` either list skips. A project that predates v3 has no
   `sync-template.sh` yet: run the template's copy
   (`bash ~/path/to/template/scripts/sync-template.sh ~/path/to/template`).
   To be told when a project falls behind, set `TEMPLATE_DIR` (your template
